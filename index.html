@@ -332,9 +332,9 @@ function fuzzyMatch(q){
   var results=[];
   for(var i=0;i<STOCKS.length;i++){
     var s=STOCKS[i];var name=s.name.toLowerCase();var code=s.code.toLowerCase().replace(/^(sh|sz|bj)/,'');
-    if(code===ql||s.code.toLowerCase()===ql){results.push(Object.assign({},s,_score:100));continue;}
-    if(name.startsWith(ql)){results.push(Object.assign({},s,_score:80));continue;}
-    if(name.includes(ql)){results.push(Object.assign({},s,_score:60));continue;}
+    if(code===ql||s.code.toLowerCase()===ql){results.push(Object.assign({},s,{'_score':100}));continue;}
+    if(name.startsWith(ql)){results.push(Object.assign({},s,{'_score':80}));continue;}
+    if(name.includes(ql)){results.push(Object.assign({},s,{'_score':60}));continue;}
   }
   results.sort(function(a,b){return b._score-a._score;});
   return results.slice(0,15).map(function(x){var r={};for(var k in x)if(k!=='_score')r[k]=x[k];return r;});
