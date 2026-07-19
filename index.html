@@ -181,12 +181,15 @@ input,button{font-family:inherit}
 .pick-right{text-align:right;flex-shrink:0;margin-left:10px}
 .pick-score{font-size:20px;font-weight:800}
 .pick-sub{font-size:10px;color:#64748b;margin-top:2px}
+/* 行业分组标题 */
+.sec-title{font-size:14px;font-weight:700;color:#e2e8f0;padding:10px 4px 6px;border-bottom:1px solid #1e293b;margin-top:4px}
+.sec-title:first-child{margin-top:0}
 </style>
 </head>
 <body>
 <div class="header">
   <h1>📈 大数投资</h1>
-  <div class="sub">双低估值 · 组合分散 · 市场温度计</div>
+  <div class="sub">行业内排名选股 · 组合分散 · 市场温度计</div>
 </div>
 <div class="content" id="content">
   <div class="loadbar-wrap" id="initial-loader">
@@ -287,7 +290,7 @@ const state = {
   practice:[], livePrices:{}, showAddModal:false, addForm:{},
   industryLive:{}, market:{hs300:null},
   pickLive:{}, pickLoading:false,
-  pickFilter:{peMax:20,pbMax:2,posMax:100,onlyDouble:true,industry:'ALL'}, pickSort:'score',
+  pickFilter:{peMax:40,pbMax:5,posMax:100,industry:'ALL'}, pickSort:'ind',
   pickBuild:false, buildCapital:100000,
 };
 function $(s){return document.querySelector(s);}
@@ -327,6 +330,9 @@ async function fetchStockDetail(code){
   var price=parseFloat(f[3])||0;
   var pe=parseFloat(f[39])||null;
   var pb=parseFloat(f[43])||null;
+  var rawCode=(code||'').replace(/^(sh|sz|bj)/i,'');
+  var isExcludedBoard=/^(688|300|200|900|8)/.test(rawCode);
+  var isETFlike=/^(51|15|56|58|59)/.test(rawCode);
   var high52=parseFloat(f[33])||null;
   var low52=parseFloat(f[34])||null;
   var chg=parseFloat(f[32])||null; // 涨跌幅%
@@ -334,7 +340,6 @@ async function fetchStockDetail(code){
   if(high52&&low52&&high52>low52&&price){
     week52Pos=Math.round(((price-low52)/(high52-low52))*1000)/10;
   }
-  // ROE 估算 = PB/PE（权益报酬率 ≈ 净资产收益率）
   var roe=null;
   if(pe&&pb&&pe>0)roe=Math.round((pb/pe)*1000)/10;
   return{
@@ -342,6 +347,7 @@ async function fetchStockDetail(code){
     pe:(pe!==null&&pe>0)?Math.round(pe*100)/100:null,
     pb:(pb!==null&&pb>0)?Math.round(pb*100)/100:null,
     high52:high52,low52:low52,week52Pos:week52Pos,chg:chg,roe:roe,
+    isExcludedBoard:isExcludedBoard,isETFlike:isETFlike,
   };
 }
 async function refreshIndustryRecs(){
@@ -370,7 +376,6 @@ function fuzzyMatch(q){
 function render(){
   var map={search:'#nav-search',portfolio:'#nav-portfolio',market:'#nav-market',pick:'#nav-pick'};
   for(var _k in map){var _b=$(map[_k]);if(_b)_b.classList.toggle('active',state.tab===_k);}
-  // 详情页优先（跨 tab 通用）
   if(state.viewStack.length>0){var c0=$('#content');if(c0)c0.innerHTML=renderDetail();return;}
   if(state.tab==='search')renderSearch();
   else if(state.tab==='portfolio')renderPortfolio();
@@ -456,7 +461,7 @@ async function doSearch(){
     var c=val;
     if(/^(688|300|200|900|8)/.test(c)){renderNotice('⚠️ '+escHtml(c)+'（科创板/创业板/北交所/B股）不在大数投资选股范围，仅沪深主板A股');return;}
     if(/^(51|15|56|58|59)/.test(c)){renderNotice('⚠️ '+escHtml(c)+'（ETF基金）不在大数投资选股范围');return;}
-    var secid=c.startsWith('6')?'sh'+c:'sz'+c;
+    var secid=c.startsWith('6')?'sh'+code:'sz'+c;
     var c2=$('#content');if(c2)c2.innerHTML='<div class="empty-hint"><span class="loading"></span> 正在查询 '+escHtml(c)+' …</div>';
     var r=await fetchStockDetail(secid);
     if(r.error){state.searchResults=[];renderSearchResults();return;}
@@ -543,7 +548,6 @@ function renderDetail(){
   html+='<div class="detail-header"><div><div class="detail-name">'+escHtml(s.name)+'</div><div class="detail-code">'+escHtml((s.code||'').replace(/^(sh|sz|bj)/i,''))+'</div></div>'+
     '<div><div class="detail-price">'+(s.price?'¥'+s.price:'—')+'</div>'+(s.chg!=null?'<div class="detail-meta" style="color:'+chgColor(s.chg)+'">'+(s.chg>=0?'+':'')+s.chg+'%</div>':'')+'</div></div>';
   html+='<div class="signal-banner '+sig.cls+'"><div class="signal-label">'+sig.icon+' '+sig.label+'</div><div class="signal-sub">'+sig.sub+'</div></div>';
-  // 双低徽章
   html+='<div class="double-low '+(doubleLow?'':'no')+'">'+(doubleLow?'🌟 双低达标：PE≤'+PE_THRESHOLD+' 且 PB≤'+PB_THRESHOLD:'⚠️ 未达双低：'+(!peOk?'PE>'+PE_THRESHOLD:'')+(!pbOk?' PB>'+PB_THRESHOLD:''))+'</div>';
   var peCls=s.pe!=null?(peOk?'metric-ok':'metric-fail'):'metric-neutral';
   var pbCls=s.pb!=null?(pbOk?'metric-ok':'metric-fail'):'metric-neutral';
@@ -574,7 +578,6 @@ function renderPortfolio(){
     c.innerHTML='<div class="practice-empty"><div class="icon">📊</div><div class="title">组合还是空的</div><div class="desc">去「股票查询」找股票加入实践表，这里会自动生成组合分析</div></div>';
     return;
   }
-  // 计算汇总
   var totalMV=0,totalCost=0,weightedPE=0,weightedPB=0,weightedDiv=0,divCount=0;
   var indMap={};
   state.practice.forEach(function(item){
@@ -605,13 +608,11 @@ function renderPortfolio(){
   if(weightedDiv!=null)html+='<div class="summary-row"><span class="summary-label">加权股息率</span><span class="summary-value" style="color:#6ee7b7">'+weightedDiv.toFixed(2)+'%</span></div>';
   html+='<div class="summary-row"><span class="summary-label">持股数 / 行业数</span><span class="summary-value">'+state.practice.length+' 只 / '+Object.keys(indMap).length+' 个</span></div>';
   html+='</div>';
-  // 行业集中度警告（大数投资：单一行业≤20%）
   var overList=[];
   for(var k in indMap){var pct=totalMV>0?indMap[k].mv/totalMV*100:0;if(pct>SINGLE_INDUSTRY_CAP)overList.push(k+' '+pct.toFixed(0)+'%');}
   if(overList.length>0){
     html+='<div class="warn-banner">⚠️ 行业集中度预警：'+overList.join('、')+' 超过 '+SINGLE_INDUSTRY_CAP+'% 上限。大数投资要求跨行业分散，建议减仓或加配其他行业。</div>';
   }
-  // 行业分布
   html+='<div class="ind-breakdown"><div class="industry-title">🏭 行业分布（单一行业建议≤'+SINGLE_INDUSTRY_CAP+'%）</div>';
   var indKeys=Object.keys(indMap).sort(function(a,b){return indMap[b].mv-indMap[a].mv;});
   indKeys.forEach(function(k){
@@ -621,7 +622,6 @@ function renderPortfolio(){
       '<div class="ind-bar-track"><div class="ind-bar-fill '+(over?'over':'ok')+'" style="width:'+Math.min(pct,100)+'%"></div></div></div>';
   });
   html+='</div>';
-  // 个股列表
   state.practice.forEach(function(item){
     var live=state.livePrices[item.code]||{};
     var cur=live.price||item.buyPrice||0;
@@ -679,7 +679,6 @@ function renderMarket(){
     '<div class="thermo-advice" style="color:'+color+'">'+advice+'</div>'+
     '<div class="thermo-note">'+note+'<br>（分位按近10年 PE 区间 '+HS300_PE_MIN+'–'+HS300_PE_MAX+' 估算，仅供参考）</div>'+
   '</div>';
-  // 行业热度图（全行业）
   html+='<div class="industry-section"><div class="industry-title">🔥 行业热度（涨跌幅 · 52周位置）</div><div class="heatmap">';
   for(var i=0;i<INDUSTRY_RECS.length;i++){
     var r=INDUSTRY_RECS[i];var live=state.industryLive[r.code]||{};
@@ -693,12 +692,7 @@ function renderMarket(){
   html+='</div></div>';
   c.innerHTML=html;
 }
-// ---- 优选清单 ----
-function doubleLowScore(d){
-  if(d==null||d.pe==null||d.pb==null||d.pe<=0||d.pb<=0)return null;
-  return Math.round((d.pe/PE_THRESHOLD + d.pb/PB_THRESHOLD)*100)/100;
-}
-function isDoubleLow(d){var s=doubleLowScore(d);return s!=null&&s<=2;}
+// ---- 优选清单（方向一：行业内排名选股，阈值做参考标注） ----
 async function loadPickList(){
   if(state.pickLoading)return;
   state.pickLoading=true;
@@ -714,6 +708,40 @@ async function loadPickList(){
 function pickSet(key,val){state.pickFilter[key]=val;renderPick();}
 function pickSort(s){state.pickSort=s;renderPick();}
 function toggleBuild(){state.pickBuild=!state.pickBuild;renderPick();}
+
+function indDlScore(d){
+  if(d==null||d.pe==null||d.pb==null||d.pe<=0||d.pb<=0)return null;
+  return d.pe/PE_THRESHOLD + d.pb/PB_THRESHOLD;
+}
+function isDl(d){var s=indDlScore(d);return s!=null&&s<=2;}
+
+function pickPerIndustry(rows,f){
+  var byInd={};
+  rows.forEach(function(d){
+    var ind=d.industry||'其他';
+    if(!byInd[ind])byInd[ind]=[];
+    byInd[ind].push(d);
+  });
+  var result=[];
+  var indKeys=Object.keys(byInd).sort();
+  indKeys.forEach(function(ind){
+    var stocks=byInd[ind];
+    var peSorted=stocks.slice().sort(function(a,b){return (a.pe==null?1e9:a.pe)-(b.pe==null?1e9:b.pe);});
+    var pbSorted=stocks.slice().sort(function(a,b){return (a.pb==null?1e9:a.pb)-(b.pb==null?1e9:b.pb);});
+    var selected=[];
+    var i;
+    for(i=0;i<Math.min(1,peSorted.length);i++){
+      if(peSorted[i].pe!=null&&peSorted[i].pe>0&&selected.indexOf(peSorted[i])<0)selected.push(peSorted[i]);
+    }
+    for(i=0;i<Math.min(1,pbSorted.length);i++){
+      if(pbSorted[i].pb!=null&&pbSorted[i].pb>0&&selected.indexOf(pbSorted[i])<0)selected.push(pbSorted[i]);
+    }
+    if(selected.length===0&&stocks.length>0&&!stocks[0].isExcludedBoard)selected.push(stocks[0]);
+    selected.forEach(function(st){result.push({industry:ind,stock:st});});
+  });
+  return result;
+}
+
 function renderPick(){
   var c=$('#content');if(c==null)return;
   if(state.pickLoading && Object.keys(state.pickLive).length===0){
@@ -722,79 +750,106 @@ function renderPick(){
     return;
   }
   var f=state.pickFilter;
-  var rows=Object.keys(state.pickLive).map(function(k){return state.pickLive[k];});
-  rows=rows.filter(function(d){
-    if(f.onlyDouble && !isDoubleLow(d))return false;
-    if(d.pe!=null && f.peMax!=null && d.pe>f.peMax)return false;
-    if(d.pb!=null && f.pbMax!=null && d.pb>f.pbMax)return false;
-    if(d.week52Pos!=null && f.posMax!=null && d.week52Pos>f.posMax)return false;
-    if(f.industry!=='ALL' && d.industry!==f.industry)return false;
-    return true;
+  // Step 1: 可用数据
+  var all=Object.keys(state.pickLive).map(function(k){return state.pickLive[k];}).filter(function(d){
+    return d.price!=null&&d.pe!=null&&d.pb!=null&&d.pe>0&&d.pb>0 && !d.isExcludedBoard;
   });
-  rows.sort(function(a,b){
-    if(state.pickSort==='pe')return (a.pe==null?1e9:a.pe)-(b.pe==null?1e9:b.pe);
-    if(state.pickSort==='pb')return (a.pb==null?1e9:a.pb)-(b.pb==null?1e9:b.pb);
-    if(state.pickSort==='pos')return (a.week52Pos==null?1e9:a.week52Pos)-(b.week52Pos==null?1e9:b.week52Pos);
-    var sa=doubleLowScore(a), sb=doubleLowScore(b);
-    if(sa==null&&sb==null)return 0;
-    if(sa==null)return 1;
-    if(sb==null)return -1;
-    return sa-sb;
-  });
-  var total=Object.keys(state.pickLive).length;
-  var dlCount=rows.filter(function(d){return isDoubleLow(d);}).length;
-  var industries=[];
-  STOCKS.forEach(function(s){if(s.industry!=='ETF'&&industries.indexOf(s.industry)<0)industries.push(s.industry);});
+  // Step 2: 按行业选股
+  var picks=pickPerIndustry(all, f);
+  // Step 3: 行业过滤器
+  if(f.industry!=='ALL')picks=picks.filter(function(p){return p.industry===f.industry;});
+  // Step 4: 可选硬过滤（默认很宽）
+  if(f.peMax<40||f.pbMax<5){
+    picks=picks.filter(function(p){
+      var d=p.stock;
+      if(d.pe!=null&&d.pe>f.peMax)return false;
+      if(d.pb!=null&&d.pb>f.pbMax)return false;
+      return true;
+    });
+  }
+  // Step 5: 排序
+  var s=state.pickSort;
+  if(s==='pe'){
+    picks.sort(function(a,b){return (a.stock.pe==null?1e9:a.stock.pe)-(b.stock.pe==null?1e9:b.stock.pe);});
+  }else if(s==='pb'){
+    picks.sort(function(a,b){return (a.stock.pb==null?1e9:a.stock.pb)-(b.stock.pb==null?1e9:b.stock.pb);});
+  }else if(s==='pos'){
+    picks.sort(function(a,b){return (a.stock.week52Pos==null?1e9:a.stock.week52Pos)-(b.stock.week52Pos==null?1e9:b.stock.week52Pos);});
+  }else if(s==='score'){
+    picks.sort(function(a,b){var sa=indDlScore(a.stock)||999;var sb=indDlScore(b.stock)||999;return sa-sb;});
+  }else{
+    picks.sort(function(a,b){
+      if(a.industry!==b.industry)return a.industry.localeCompare(b.industry);
+      return (a.stock.name||'').localeCompare(b.stock.name||'');
+    });
+  }
+  // 统计
+  var total=all.length;
+  var indCovered={};
+  picks.forEach(function(p){indCovered[p.industry]=1;});
+  var indCount=Object.keys(indCovered).length;
+  var dlCount=picks.filter(function(p){return isDl(p.stock);}).length;
+  // 行业选项
+  var allInds={};
+  Object.keys(state.pickLive).forEach(function(k){allInds[state.pickLive[k].industry]=1;});
   var indOpts='<option value="ALL">全部行业</option>';
-  industries.forEach(function(n){indOpts+='<option value="'+escAttr(n)+'" '+(f.industry===n?'selected':'')+'>'+escHtml(n)+'</option>';});
+  Object.keys(allInds).sort().forEach(function(n){indOpts+='<option value="'+escAttr(n)+'" '+(f.industry===n?'selected':'')+'>'+escHtml(n)+'</option>';});
+  // ==== 渲染 ====
   var html='<div class="pick-filters">'+
     '<div class="pf-row">'+
       '<div class="pf-field"><label>行业</label><select id="pf-industry" onchange="pickSet(\'industry\',this.value)">'+indOpts+'</select></div>'+
-      '<div class="pf-field"><label>仅看双低(PE≤'+PE_THRESHOLD+'&amp;PB≤'+PB_THRESHOLD+')</label><select id="pf-only" onchange="pickSet(\'onlyDouble\',this.value===\'1\')">'+
-        '<option value="1" '+(f.onlyDouble?'selected':'')+'>是</option><option value="0" '+(!f.onlyDouble?'selected':'')+'>否</option></select></div>'+
-    '</div>'+
-    '<div class="pf-row">'+
       '<div class="pf-field"><label>PE 上限 ≤</label><input id="pf-pe" type="number" step="1" value="'+escAttr(f.peMax)+'" onchange="pickSet(\'peMax\',parseFloat(this.value)||999)"></div>'+
       '<div class="pf-field"><label>PB 上限 ≤</label><input id="pf-pb" type="number" step="0.1" value="'+escAttr(f.pbMax)+'" onchange="pickSet(\'pbMax\',parseFloat(this.value)||999)"></div>'+
-      '<div class="pf-field"><label>52周位置 ≤ %</label><input id="pf-pos" type="number" step="5" value="'+escAttr(f.posMax)+'" onchange="pickSet(\'posMax\',parseFloat(this.value)||100)"></div>'+
     '</div>'+
   '</div>';
   html+='<div class="sort-bar">'+
-    '<button class="sort-btn '+(state.pickSort==='score'?'active':'')+'" onclick="pickSort(\'score\')">🌟双低分数</button>'+
-    '<button class="sort-btn '+(state.pickSort==='pe'?'active':'')+'" onclick="pickSort(\'pe\')">📉PE</button>'+
-    '<button class="sort-btn '+(state.pickSort==='pb'?'active':'')+'" onclick="pickSort(\'pb\')">📉PB</button>'+
-    '<button class="sort-btn '+(state.pickSort==='pos'?'active':'')+'" onclick="pickSort(\'pos\')">📉52周位置</button>'+
+    '<button class="sort-btn '+(s==='ind'?'active':'')+'" onclick="pickSort(\'ind\')">🏢行业覆盖</button>'+
+    '<button class="sort-btn '+(s==='score'?'active':'')+'" onclick="pickSort(\'score\')">🌟双低分数</button>'+
+    '<button class="sort-btn '+(s==='pe'?'active':'')+'" onclick="pickSort(\'pe\')">📉PE</button>'+
+    '<button class="sort-btn '+(s==='pb'?'active':'')+'" onclick="pickSort(\'pb\')">📉PB</button>'+
+    '<button class="sort-btn '+(s==='pos'?'active':'')+'" onclick="pickSort(\'pos\')">📉52周位置</button>'+
     '<button class="sort-btn" onclick="loadPickList()" style="margin-left:auto">🔄刷新</button>'+
     '<button class="sort-btn '+(state.pickBuild?'active':'')+'" onclick="toggleBuild()">⚖️建仓建议</button>'+
   '</div>';
-  html+='<div class="pick-summary"><span>符合条件 <b>'+rows.length+'</b> 只 / 共 '+total+' 只</span><span class="badge-ok">双低达标 '+dlCount+' 只</span></div>';
-  if(state.pickBuild && rows.length>0){
+  html+='<div class="pick-summary"><span>覆盖 <b>'+indCount+'</b> 个行业 · <b>'+picks.length+'</b> 只</span><span class="badge-ok">双低达标 '+dlCount+' 只</span></div>';
+  // 建仓建议
+  if(state.pickBuild && picks.length>0){
     var cap=state.buildCapital||100000;
-    var n=rows.length;
+    var n=picks.length;
     var per=Math.max(100,Math.floor(cap/n/100)*100);
     html+='<div class="pick-filters" style="border-color:#22c55e">'+
       '<div class="pf-row"><div class="pf-field"><label>总资金（元）· 等权建仓建议</label><input id="build-cap" type="number" step="1000" value="'+cap+'" onchange="state.buildCapital=parseFloat(this.value)||100000;renderPick();"></div></div>'+
-      '<div style="font-size:13px;color:#94a3b8;margin-bottom:8px">共 <b style="color:#6ee7b7">'+n+'</b> 只双低标的，每只等权约 <b style="color:#6ee7b7">¥'+per.toLocaleString()+'</b>（按当前筛选结果）</div>';
-    for(var bi=0;bi<n;bi++){var bd=rows[bi];
-      html+='<div class="pick-card" style="cursor:default"><div class="pick-left"><div class="pick-name">'+escHtml(bd.name)+' <span style="font-size:11px;color:#64748b">'+escHtml((bd.code||'').replace(/^(sh|sz|bj)/i,''))+'</span></div><div class="pick-meta">建议买入约 ¥'+per.toLocaleString()+'</div></div></div>';
+      '<div style="font-size:13px;color:#94a3b8;margin-bottom:8px">共 <b style="color:#6ee7b7">'+n+'</b> 只（'+indCount+'个行业），每只等权约 <b style="color:#6ee7b7">¥'+per.toLocaleString()+'</b></div>';
+    for(var bi=0;bi<n;bi++){var bp=picks[bi].stock;
+      html+='<div class="pick-card" style="cursor:default"><div class="pick-left"><div class="pick-name">'+escHtml(bp.name)+' <span style="font-size:11px;color:#64748b">'+escHtml((bp.code||'').replace(/^(sh|sz|bj)/i,''))+'</span><span style="font-size:11px;color:#94a3b8;margin-left:6px">· '+escHtml(picks[bi].industry)+'</span></div><div class="pick-meta">建议买入约 ¥'+per.toLocaleString()+'</div></div></div>';
     }
     html+='</div>';
   }
-  if(rows.length===0){
-    html+='<div class="empty-hint">没有符合当前筛选条件的股票，试试放宽 PE/PB 上限或关闭"仅看双低"。</div>';
+  // 股票列表
+  if(picks.length===0){
+    html+='<div class="empty-hint">当前行业没有可用数据，试试其他行业或刷新行情。</div>';
   } else {
-    for(var i=0;i<rows.length;i++){
-      var d=rows[i];
-      var sc=doubleLowScore(d);
+    var curInd='';
+    for(var i=0;i<picks.length;i++){
+      var p=picks[i];var d=p.stock;
+      if(state.pickSort==='ind' && p.industry!==curInd){
+        curInd=p.industry;
+        html+='<div class="sec-title">🏭 '+escHtml(curInd)+'</div>';
+      }
+      var sc=indDlScore(d);
+      var dl=isDl(d);
       var sig=calcSignal(d);
-      var dl=isDoubleLow(d);
       var scoreStr=sc!=null?sc.toFixed(2):'—';
       var scoreColor=dl?'#6ee7b7':(sc!=null&&sc<=3?'#f59e0b':'#94a3b8');
       var tagCls=sig.cls==='buy'?'buy':sig.cls==='sell'?'sell':'hold';
+      var peOk=d.pe<=PE_THRESHOLD;
+      var pbOk=d.pb<=PB_THRESHOLD;
       html+='<div class="pick-card" onclick="viewStock({code:\''+escAttr(d.code)+'\',name:\''+escAttr(d.name)+'\'})">'+
         '<div class="pick-left">'+
-          '<div class="pick-name">'+escHtml(d.name)+' <span style="font-size:11px;color:#64748b">'+escHtml((d.code||'').replace(/^(sh|sz|bj)/i,''))+'</span></div>'+
-          '<div class="pick-meta">'+escHtml(d.industry||'')+' · PE '+(d.pe!=null?d.pe.toFixed(2):'—')+' · PB '+(d.pb!=null?d.pb.toFixed(2):'—')+' · 52周'+(d.week52Pos!=null?d.week52Pos+'%':'—')+'</div>'+
+          '<div class="pick-name">'+escHtml(d.name)+' <span style="font-size:11px;color:#64748b">'+escHtml((d.code||'').replace(/^(sh|sz|bj)/i,''))+'</span>'+
+            (state.pickSort!=='ind'?'<span style="font-size:11px;color:#94a3b8;margin-left:6px">· '+escHtml(d.industry)+'</span>':'')+
+          '</div>'+
+          '<div class="pick-meta">PE '+(d.pe!=null?d.pe.toFixed(2):'—')+(peOk?'✅':'⚠️')+' · PB '+(d.pb!=null?d.pb.toFixed(2):'—')+(pbOk?'✅':'⚠️')+' · 52周'+(d.week52Pos!=null?d.week52Pos+'%':'—')+'</div>'+
           '<div class="pick-tags">'+
             (dl?'<span class="pick-tag dl">✅双低达标</span>':'')+
             '<span class="pick-tag '+tagCls+'">'+sig.icon+' '+sig.label+'</span>'+
