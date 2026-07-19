@@ -261,6 +261,9 @@ const STOCKS = [
   {code:'sh603986',name:'兆易创新',industry:'芯片'},
   {code:'sz002475',name:'立讯精密',industry:'电子'},
   {code:'sh601111',name:'中国国航',industry:'航空'},
+  {code:'sh601169',name:'北京银行',industry:'银行'},{code:'sz000402',name:'金融街',industry:'房地产'},
+  {code:'sz002582',name:'好想你',industry:'食品'},{code:'sh600020',name:'中原高速',industry:'高速'},
+  {code:'sh600827',name:'百联股份',industry:'商业'},
 ];
 // 行业推荐：覆盖全部 25 个行业（每行业 1 只代表性标的），ETF 单列
 const INDUSTRY_RECS = [
@@ -890,13 +893,13 @@ function renderPick(){
           '</div>'+
           '<div class="pick-meta">PE '+(d.pe!=null?d.pe.toFixed(2):'—')+(peOk?'✅':'⚠️')+' · PB '+(d.pb!=null?d.pb.toFixed(2):'—')+(pbOk?'✅':'⚠️')+' · 52周'+(d.week52Pos!=null?d.week52Pos+'%':'—')+'</div>'+
           '<div class="pick-tags">'+
-            (dl?'<span class="pick-tag dl">✅双低达标</span>':'')+
             '<span class="pick-tag '+tagCls+'">'+sig.icon+' '+sig.label+'</span>'+
           '</div>'+
         '</div>'+
         '<div class="pick-right">'+
           '<div class="pick-score" style="color:'+scoreColor+'">'+scoreStr+'</div>'+
           '<div class="pick-sub">双低分数</div>'+
+          (dl?'<div style="margin-top:6px;font-size:11px;color:#6ee7b7">✅双低达标</div>':'')+
         '</div>'+
       '</div>';
     }
