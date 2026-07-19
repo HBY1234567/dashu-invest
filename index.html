@@ -1094,7 +1094,7 @@ setInterval(function(){if(state.tab==='pick'&&!state.pickLoading&&Object.keys(st
   </div>
 </div>
 <script>
-function checkPwd(){var i=document.getElementById('pwd-input'),m=document.getElementById('pwd-msg'),b=document.getElementById('pwd-box');if(i.value.trim()==='dashu2026'){sessionStorage.setItem('dashu_pwd','1');document.getElementById('pwd-overlay').style.display='none'}else{m.textContent='密码错误，请重试';b.classList.remove('shake');void b.offsetWidth;b.classList.add('shake')}}
+function checkPwd(){var i=document.getElementById('pwd-input'),m=document.getElementById('pwd-msg'),b=document.getElementById('pwd-box');if(i.value.trim()==='2026'){sessionStorage.setItem('dashu_pwd','1');document.getElementById('pwd-overlay').style.display='none'}else{m.textContent='密码错误，请重试';b.classList.remove('shake');void b.offsetWidth;b.classList.add('shake')}}
 if(sessionStorage.getItem('dashu_pwd')==='1'){document.getElementById('pwd-overlay').style.display='none'}
 </script>
 </body>
