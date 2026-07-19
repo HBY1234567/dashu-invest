@@ -279,6 +279,7 @@ const INDUSTRY_RECS = [
   {code:'sh601111',name:'中国国航',industry:'航空'},
 ];
 const GBK_DECODER = new TextDecoder('gbk');
+const ALL_INDUSTRIES=[...new Set(STOCKS.map(function(s){return s.industry;}))].filter(function(i){return i&&i!=='ETF';}).sort();
 const PE_THRESHOLD = 20;   // PE≤20 低估
 const PB_THRESHOLD = 2;    // PB≤2 低估
 const SINGLE_INDUSTRY_CAP = 20; // 单一行业仓位上限 20%（大数投资分散原则）
@@ -479,8 +480,10 @@ async function doSearch(){
     // 直接查询并显示详情（在当前页下方）
     var r=await fetchStockDetail(secid);
     if(r.error){state.searchResults=[];render();return;}
-    // 将查询结果作为单条结果展示，点击后查看详情
+    // 查询结果显示在搜索框下方（不跳转）
     state.searchResults=[{code:secid,name:r.name||c,industry:r.industry||''}];
+    state.selectedStock=Object.assign({code:secid,name:r.name||c,industry:r.industry||''},r);
+    state.livePrices[secid]=r;
     render();
     return;
   }
@@ -494,7 +497,7 @@ async function doSearch(){
 }
 // renderSearchResults 已合并到 renderSearch 中
 function clearSearch(){state.query='';state.searchResults=[];state.viewStack=[];state.selectedStock=null;render();var inp=$('#search-input');if(inp)inp.value='';}
-function selectSuggestion(code,name){var sug=$('#suggestions');if(sug)sug.classList.remove('show');viewStock({code:code,name:name});}
+function selectSuggestion(code,name){var sug=$('#suggestions');if(sug)sug.classList.remove('show');var inp=$('#search-input');if(inp)inp.value=code.replace(/^(sh|sz|bj)/i,'');state.query=inp.value;}
 function renderNotice(msg){
   var c=$('#content');if(!c)return;
   var html='<div class="search-wrap"><input id="search-input" type="text" placeholder="输入代码或名称，如 600519、茅台" value="'+escAttr(state.query)+'" autocomplete="off"><button class="search-btn" onclick="doSearch()">查询</button></div>';
@@ -568,6 +571,43 @@ function renderDetail(){
   return html;
 }
 function goBack(){state.viewStack.pop();state.selectedStock=null;render();}
+function renderStockCard(s,live){
+  var d=Object.assign({},s,live);
+  var peOk=d.pe!=null&&d.pe<=PE_THRESHOLD;
+  var pbOk=d.pb!=null&&d.pb<=PB_THRESHOLD;
+  var peVal=d.pe!=null?d.pe.toFixed(2):'—';
+  var pbVal=d.pb!=null?d.pb.toFixed(2):'—';
+  var roeVal=d.roe!=null?d.roe.toFixed(1)+'%':'—';
+  var sig=calcSignal(d);
+  var inPractice=state.practice.some(function(p){return p.code===d.code;});
+  var doubleLow=peOk&&pbOk;
+  var html='<div class="card">';
+  html+='<div class="detail-header"><div><div class="detail-name">'+escHtml(d.name)+'</div><div class="detail-code">'+escHtml((d.code||'').replace(/^(sh|sz|bj)/i,''))+'</div></div>'+
+    '<div><div class="detail-price">'+(d.price?'¥'+d.price:'—')+'</div>'+(d.chg!=null?'<div class="detail-meta" style="color:'+chgColor(d.chg)+'">'+(d.chg>=0?'+':'')+d.chg+'%</div>':'')+'</div></div>';
+  html+='<div class="signal-banner '+sig.cls+'"><div class="signal-label">'+sig.icon+' '+sig.label+'</div><div class="signal-sub">'+sig.sub+'</div></div>';
+  html+='<div class="double-low '+(doubleLow?'':'no')+'">'+(doubleLow?'🌟 双低达标：PE≤'+PE_THRESHOLD+' 且 PB≤'+PB_THRESHOLD:'⚠️ 未达双低：'+(!peOk?'PE>'+PE_THRESHOLD:'')+(!pbOk?' PB>'+PB_THRESHOLD:''))+'</div>';
+  var peCls=d.pe!=null?(peOk?'metric-ok':'metric-fail'):'metric-neutral';
+  var pbCls=d.pb!=null?(pbOk?'metric-ok':'metric-fail'):'metric-neutral';
+  html+='<div class="metric-grid">'+
+    '<div class="metric"><div class="metric-label">市盈率 PE</div><div class="metric-value '+peCls+'">'+peVal+'</div><div class="metric-note '+(d.pe!=null?(peOk?'metric-ok':'metric-fail'):'metric-neutral')+'">'+(d.pe!=null?(peOk?'✅ 低估':'❌ 偏高'):'—')+'</div></div>'+
+    '<div class="metric"><div class="metric-label">市净率 PB</div><div class="metric-value '+pbCls+'">'+pbVal+'</div><div class="metric-note '+(d.pb!=null?(pbOk?'metric-ok':'metric-fail'):'metric-neutral')+'">'+(d.pb!=null?(pbOk?'✅ 低估':'❌ 偏高'):'—')+'</div></div>'+
+    (function(){var roeNote='';var roeCls='metric-neutral';if(d.roe!=null){if(d.roe>=15){roeNote='✅ 优秀（≥15%）';roeCls='metric-ok';}else if(d.roe>=10){roeNote='🟡 良好（10-15%）';roeCls='metric-neutral';}else if(d.roe>=5){roeNote='⚠️ 一般（5-10%）';roeCls='metric-fail';}else{roeNote='❌ 偏低（<5%）';roeCls='metric-fail';}}return '<div class="metric"><div class="metric-label">ROE 估算</div><div class="metric-value metric-neutral">'+roeVal+'</div><div class="metric-note '+roeCls+'">'+(roeNote||'PB÷PE')+'</div></div>';})()+
+    '<div class="metric"><div class="metric-label">52周位置</div><div class="metric-value" style="color:'+weekPosColor(d.week52Pos)+'">'+(d.week52Pos!=null?d.week52Pos+'%':'—')+'</div><div class="metric-note metric-neutral">'+(d.chg!=null?(d.chg>=0?'今日+':'今日')+d.chg+'%':'—')+'</div></div>'+
+  '</div>';
+  if(d.week52Pos!=null||(d.high52&&d.low52)){
+    var pos=d.week52Pos;var posBg=weekPosColor(pos);var posLabel=pos!=null?(pos+'%'):'—';
+    html+='<div class="week52"><div class="week52-header"><span class="week52-title">📈 52周价格位置</span><span class="week52-badge" style="background:'+posBg+';color:#fff">'+posLabel+'</span></div>'+
+      '<div class="week52-bar"><div style="position:absolute;left:30%;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.3)"></div><div style="position:absolute;left:70%;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.3)"></div><div class="week52-fill" style="width:'+(pos||0)+'%;background:'+posBg+'"></div></div>'+
+      '<div class="week52-labels"><span>最低</span><span style="color:#22c55e">🟢买入&lt;30%</span><span>🟡持有</span><span style="color:#ef4444">🔴卖出&gt;70%</span><span>最高</span></div>'+
+      (d.high52&&d.low52?'<div class="week52-range">52周低价 ¥'+d.low52+'  |  52周高价 ¥'+d.high52+'</div>':'')+'</div>';
+  } else {
+    html+='<div class="week52"><div class="week52-title" style="color:#475569;font-size:13px;text-align:center;padding:10px">⚠️ 52周数据暂时不可用</div></div>';
+  }
+  html+='<button class="add-btn" onclick="openAddModal()" '+(inPractice?'style="background:#334155;color:#94a3b8" disabled':'')+'>'+(inPractice?'✅ 已在实践表':'➕ 加入实践表（记录买入价和数量）')+'</button>';
+  html+='</div>';
+  return html;
+}
+
 // ---- 组合分析 ----
 function renderPortfolio(){
   var c=$('#content');
@@ -747,6 +787,7 @@ function renderPick(){
     return;
   }
   var f=state.pickFilter;
+  var heldInds={};state.practice.forEach(function(p){if(p.industry)heldInds[p.industry]=1;});
   // Step 1: 可用数据
   var all=Object.keys(state.pickLive).map(function(k){return state.pickLive[k];}).filter(function(d){
     return d.price!=null&&d.pe!=null&&d.pb!=null&&d.pe>0&&d.pb>0 && !d.isExcludedBoard;
@@ -818,7 +859,7 @@ function renderPick(){
       '<div class="pf-row"><div class="pf-field"><label>总资金（元）· 等权建仓建议</label><input id="build-cap" type="number" step="1000" value="'+cap+'" onchange="state.buildCapital=parseFloat(this.value)||100000;renderPick();"></div></div>'+
       '<div style="font-size:13px;color:#94a3b8;margin-bottom:8px">共 <b style="color:#6ee7b7">'+n+'</b> 只（'+indCount+'个行业），每只等权约 <b style="color:#6ee7b7">¥'+per.toLocaleString()+'</b></div>';
     for(var bi=0;bi<n;bi++){var bp=picks[bi].stock;
-      html+='<div class="pick-card" style="cursor:default"><div class="pick-left"><div class="pick-name">'+escHtml(bp.name)+' <span style="font-size:11px;color:#64748b">'+escHtml((bp.code||'').replace(/^(sh|sz|bj)/i,''))+'</span><span style="font-size:11px;color:#94a3b8;margin-left:6px">· '+escHtml(picks[bi].industry)+'</span></div><div class="pick-meta">建议买入约 ¥'+per.toLocaleString()+'</div></div></div>';
+      html+='<div class="pick-card" style="cursor:default"><div class="pick-left"><div class="pick-name">'+escHtml(bp.name)+' <span style="font-size:11px;color:#64748b">'+escHtml((bp.code||'').replace(/^(sh|sz|bj)/i,''))+'</span><span style="font-size:11px;color:#94a3b8;margin-left:6px">· '+escHtml(picks[bi].industry)+'</span>'+(heldInds[picks[bi].industry]?'<span style="font-size:11px;color:#93c5fd;margin-left:6px">🔵已持仓</span>':'')+'</div><div class="pick-meta">建议买入约 ¥'+per.toLocaleString()+'</div></div></div>';
     }
     html+='</div>';
   }
@@ -845,6 +886,7 @@ function renderPick(){
         '<div class="pick-left">'+
           '<div class="pick-name">'+escHtml(d.name)+' <span style="font-size:11px;color:#64748b">'+escHtml((d.code||'').replace(/^(sh|sz|bj)/i,''))+'</span>'+
             (state.pickSort!=='ind'?'<span style="font-size:11px;color:#94a3b8;margin-left:6px">· '+escHtml(d.industry)+'</span>':'')+
+            (heldInds[d.industry]?'<span style="font-size:11px;color:#93c5fd;margin-left:6px">🔵已持仓</span>':'')+
           '</div>'+
           '<div class="pick-meta">PE '+(d.pe!=null?d.pe.toFixed(2):'—')+(peOk?'✅':'⚠️')+' · PB '+(d.pb!=null?d.pb.toFixed(2):'—')+(pbOk?'✅':'⚠️')+' · 52周'+(d.week52Pos!=null?d.week52Pos+'%':'—')+'</div>'+
           '<div class="pick-tags">'+
@@ -874,6 +916,7 @@ function renderModal(){
     '<div class="modal-field"><label class="modal-label">股票</label><input class="modal-input" value="'+escAttr(f.name+' ('+f.code.replace(/^(sh|sz|bj)/i,'')+')')+'" disabled></div>'+
     '<div class="modal-field"><label class="modal-label">买入价格（元）</label><input class="modal-input" type="number" step="0.01" placeholder="填实际买入价" value="'+escAttr(f.buyPrice||'')+'" id="modal-buyPrice"></div>'+
     '<div class="modal-field"><label class="modal-label">买入数量（股）</label><input class="modal-input" type="number" step="100" placeholder="100的整数倍" value="'+escAttr(f.shares||'')+'" id="modal-shares"></div>'+
+    '<div class="modal-field"><label class="modal-label">行业（用于组合分散分析）</label><select class="modal-input" id="modal-industry">'+ALL_INDUSTRIES.map(function(i){return '<option value="'+escAttr(i)+'"'+(f.industry===i?' selected':'')+'>'+escHtml(i)+'</option>';}).join('')+'</select></div>'+
     '<div class="modal-field"><label class="modal-label">股息率（%，可选 · 用于组合现金流分析）</label><input class="modal-input" type="number" step="0.1" placeholder="如 4.5" value="'+escAttr(f.divYld||'')+'" id="modal-divYld"></div>'+
     '<div class="modal-actions"><button class="modal-cancel" onclick="closeModal()">取消</button><button class="modal-confirm" onclick="submitAdd()">确认添加</button></div></div></div>';
   var existing=$('.modal-overlay');if(existing)existing.remove();
@@ -883,11 +926,13 @@ async function submitAdd(){
   var buyPrice=parseFloat($('#modal-buyPrice').value)||0;
   var shares=parseInt($('#modal-shares').value)||0;
   var divYld=parseFloat($('#modal-divYld').value)||null;
+  var indEl=$('#modal-industry');var ind=indEl?indEl.value:'';
+  if(!ind)ind=s.industry||'其他';
   if(!buyPrice||!shares){alert('请填写买入价和数量');return;}
   var s=state.selectedStock;var live=state.livePrices[s.code]||{};
   var list=loadPractice();
   var idx=list.findIndex(function(p){return p.code===s.code;});
-  var entry={code:s.code,name:s.name,industry:s.industry,buyPrice:buyPrice,shares:shares,divYld:divYld,
+  var entry={code:s.code,name:s.name,industry:ind,buyPrice:buyPrice,shares:shares,divYld:divYld,
     peAtBuy:live.pe??null,pbAtBuy:live.pb??null,week52PosAtBuy:live.week52Pos??null,addedAt:new Date().toISOString()};
   if(idx>=0)list[idx]=entry;else list.push(entry);
   savePractice(list);state.practice=list;closeModal();render();
