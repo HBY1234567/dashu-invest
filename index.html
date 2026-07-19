@@ -98,7 +98,152 @@ input,button{font-family:inherit}
   <button class="tab" id="tab-practice" onclick="switchTab('practice')">📋 实践表 <span id="practice-count"></span></button>
 </div>
 
-<div class="content" id="content"></div>
+<div class="content" id="content">
+  <!-- 静态兜底（JS 未加载时仍可用） -->
+  <noscript>
+    <div style="padding:20px;background:#7f1d1d;border-radius:10px;margin-bottom:12px">
+      请在浏览器中开启 JavaScript 后再使用本应用
+    </div>
+  </noscript>
+  <div id="static-fallback" style="padding:8px 0 16px">
+    <div class="search-box" style="position:relative;margin-bottom:14px">
+      <input id="static-search" type="text" placeholder="🔍 输入股票代码或名称：600519、茅台、平安" autocomplete="off" style="width:100%;padding:14px 16px;background:#1e293b;border:2px solid #3b82f6;border-radius:12px;color:#e2e8f0;font-size:16px;outline:none">
+    </div>
+    <div style="font-size:13px;color:#94a3b8;margin-bottom:10px">📌 热门股票（点一下直接查）：</div>
+    <div id="static-hot" style="display:flex;flex-wrap:wrap;gap:8px">
+      <button class="hot-btn" data-code="sh600519" data-name="贵州茅台" style="padding:10px 14px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:14px;cursor:pointer">贵州茅台</button>
+      <button class="hot-btn" data-code="sz000858" data-name="五粮液" style="padding:10px 14px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:14px;cursor:pointer">五粮液</button>
+      <button class="hot-btn" data-code="sh601318" data-name="中国平安" style="padding:10px 14px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:14px;cursor:pointer">中国平安</button>
+      <button class="hot-btn" data-code="sh600036" data-name="招商银行" style="padding:10px 14px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:14px;cursor:pointer">招商银行</button>
+      <button class="hot-btn" data-code="sz000002" data-name="万科A" style="padding:10px 14px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:14px;cursor:pointer">万科A</button>
+      <button class="hot-btn" data-code="sh601398" data-name="工商银行" style="padding:10px 14px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:14px;cursor:pointer">工商银行</button>
+      <button class="hot-btn" data-code="sh601088" data-name="中国神华" style="padding:10px 14px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:14px;cursor:pointer">中国神华</button>
+      <button class="hot-btn" data-code="sh600900" data-name="长江电力" style="padding:10px 14px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:14px;cursor:pointer">长江电力</button>
+      <button class="hot-btn" data-code="sh600028" data-name="中国石化" style="padding:10px 14px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:14px;cursor:pointer">中国石化</button>
+      <button class="hot-btn" data-code="sh600276" data-name="恒瑞医药" style="padding:10px 14px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:14px;cursor:pointer">恒瑞医药</button>
+    </div>
+    <div style="margin-top:14px;font-size:12px;color:#64748b">提示：在搜索框输入"600519"或"茅台"试试</div>
+  </div>
+</div>
+
+<script>
+// 完全独立的兜底逻辑（不依赖主脚本的 render）
+(function(){
+  var GBK = (function(){
+    try{return new TextDecoder('gbk');}catch(e){return null;}
+  })();
+  function dec(arr){
+    if(GBK)return GBK.decode(arr);
+    // 简化的 GBK→UTF8 兜底（只处理常见字符）
+    var s='';var u8=new Uint8Array(arr);
+    for(var i=0;i<u8.length;i++){
+      var b=u8[i];
+      if(b<0x80){s+=String.fromCharCode(b);continue;}
+      if(b===0xC4){i++;var c=0x100+(u8[i]&0x3F);s+=String.fromCharCode(c);continue;}
+      s+='?';
+    }
+    return s;
+  }
+  function showResult(html){
+    var fb=document.getElementById('static-fallback');
+    if(fb)fb.innerHTML=html;
+  }
+  function fetchOne(code){
+    var secid=code;
+    if(/^\d{6}$/.test(code))secid=code.startsWith('6')?'sh'+code:'sz'+code;
+    return fetch('https://qt.gtimg.cn/q='+secid, {headers:{'Referer':'https://gu.qq.com'}})
+      .then(function(r){return r.arrayBuffer();})
+      .then(function(b){return dec(b);})
+      .then(function(s){
+        var m=s.match(/="([^"]+)"/);
+        if(!m)return null;
+        var f=m[1].split('~');
+        return {
+          name:f[1]||code,price:parseFloat(f[3])||0,
+          pe:parseFloat(f[39])||null,pb:parseFloat(f[43])||null,
+          high52:parseFloat(f[33])||null,low52:parseFloat(f[34])||null,
+        };
+      });
+  }
+  function renderStock(data){
+    var p=data.price,pe=data.pe,pb=data.pb,h=data.high52,l=data.low52;
+    var pos=null;
+    if(h&&l&&h>l&&p){pos=Math.round(((p-l)/(h-l))*1000)/10;}
+    var posColor=pos==null?'#999':pos<30?'#22c55e':pos>70?'#ef4444':'#f59e0b';
+    var sig=pos==null?'⚪ 数据不足':pos<30?'🟢 建议买入':pos>70?'🔴 建议卖出':'🟡 持有';
+    showResult(
+      '<div class="card" style="background:#1e293b;border:1px solid #334155;border-radius:14px;padding:18px">'+
+        '<div style="font-size:20px;font-weight:700;color:#fff">'+data.name+'</div>'+
+        '<div style="font-size:26px;font-weight:700;color:#fff;margin:8px 0">'+p.toFixed(2)+'</div>'+
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0">'+
+          '<div style="background:#0f172a;padding:10px;border-radius:10px;text-align:center"><div style="font-size:11px;color:#64748b">PE</div><div style="font-size:18px;font-weight:700;color:'+(pe!==null&&pe>0&&pe<=20?'#22c55e':'#94a3b8')+'">'+(pe!==null?pe.toFixed(1):'—')+'</div></div>'+
+          '<div style="background:#0f172a;padding:10px;border-radius:10px;text-align:center"><div style="font-size:11px;color:#64748b">PB</div><div style="font-size:18px;font-weight:700;color:'+(pb!==null&&pb>0&&pb<=2?'#22c55e':'#94a3b8')+'">'+(pb!==null?pb.toFixed(2):'—')+'</div></div>'+
+        '</div>'+
+        '<div style="background:#0f172a;padding:12px;border-radius:10px;margin-bottom:10px">'+
+          '<div style="font-size:13px;color:#64748b;margin-bottom:6px">52周位置</div>'+
+          '<div style="background:#1e293b;border-radius:6px;height:10px;position:relative">'+
+            '<div style="position:absolute;left:0;top:0;bottom:0;width:'+(pos||0)+'%;background:'+posColor+';border-radius:6px"></div>'+
+          '</div>'+
+          '<div style="display:flex;justify-content:space-between;font-size:11px;color:#475569;margin-top:4px"><span>低 '+l.toFixed(2)+'</span><span style="color:'+posColor+';font-weight:600">'+(pos!==null?pos.toFixed(1)+'%':'—')+'</span><span>高 '+h.toFixed(2)+'</span></div>'+
+        '</div>'+
+        '<div style="text-align:center;padding:12px;border-radius:10px;background:'+posColor+'22;border:1px solid '+posColor+';color:'+posColor+';font-weight:700">'+sig+'</div>'+
+        '<button onclick="document.getElementById(\'static-fallback\').innerHTML=document.getElementById(\'static-fallback\').dataset.original||\'\'" style="width:100%;margin-top:12px;padding:12px;background:#0f172a;border:1px solid #334155;border-radius:10px;color:#94a3b8;font-size:14px;cursor:pointer">← 返回列表</button>'+
+      '</div>'
+    );
+  }
+  // 绑定热股按钮
+  function bindHotBtns(){
+    var btns=document.querySelectorAll('.hot-btn');
+    for(var i=0;i<btns.length;i++){
+      btns[i].addEventListener('click',function(){
+        var code=this.dataset.code,name=this.dataset.name;
+        showResult('<div style="text-align:center;padding:30px;color:#60a5fa"><span style="display:inline-block;width:16px;height:16px;border:2px solid #60a5fa;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px"></span>查询 '+name+' 中…</div>');
+        fetchOne(code).then(function(d){
+          if(!d){showResult('<div style="text-align:center;padding:30px;color:#ef4444">查询失败，请下拉刷新重试</div>');return;}
+          renderStock(d);
+        }).catch(function(e){
+          showResult('<div style="text-align:center;padding:30px;color:#ef4444">网络错误：'+e.message+'<br><br>请检查网络后下拉刷新</div>');
+        });
+      });
+    }
+  }
+  // 绑定搜索框（输入代码或名称）
+  function bindSearch(){
+    var input=document.getElementById('static-search');
+    if(!input)return;
+    var codeMap={
+      '茅台':'sh600519','五粮液':'sz000858','平安':'sh601318','招行':'sh600036',
+      '万科':'sz000002','工行':'sh601398','建行':'sh601939','农行':'sh601288',
+      '中行':'sh601988','神华':'sh601088','长江电力':'sh600900','石化':'sh600028',
+      '石油':'sh601857','海油':'sh600938','恒瑞':'sh600276','格力':'sz000651',
+      '美的':'sz000333','比亚迪':'sz002594','隆基':'sh601012'
+    };
+    input.addEventListener('keydown',function(e){
+      if(e.key!=='Enter')return;
+      var v=input.value.trim();
+      if(!v)return;
+      var code=/^\d{6}$/.test(v)?(v.startsWith('6')?'sh'+v:'sz'+v):codeMap[v];
+      if(!code){showResult('<div style="text-align:center;padding:30px;color:#f59e0b">暂不支持的股票<br>请从下方热门股票选择，或输入6位代码</div>');return;}
+      showResult('<div style="text-align:center;padding:30px;color:#60a5fa">查询中…</div>');
+      fetchOne(code).then(function(d){
+        if(!d){showResult('<div style="text-align:center;padding:30px;color:#ef4444">未找到该股票</div>');return;}
+        renderStock(d);
+      });
+    });
+  }
+  // 保存初始静态 HTML 以便返回
+  setTimeout(function(){
+    var fb=document.getElementById('static-fallback');
+    if(fb)fb.dataset.original=fb.innerHTML;
+  }, 100);
+  // 1.5 秒后如果主脚本（render）还没接管，就把静态按钮绑为可用
+  setTimeout(function(){
+    if(typeof window.render==='function')return;  // 主脚本接管了
+    bindHotBtns();
+    bindSearch();
+  }, 1500);
+})();
+</script>
 
 <script>
 // 硬编码股池
