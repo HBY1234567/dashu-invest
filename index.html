@@ -101,336 +101,314 @@ input,button{font-family:inherit}
 <div class="content" id="content"></div>
 
 <script>
-// ===== 状态 =====
+// 硬编码股池
+const STOCKS = [
+  {code:'sh601398',name:'工商银行'},{code:'sh601939',name:'建设银行'},{code:'sh601288',name:'农业银行'},
+  {code:'sh601988',name:'中国银行'},{code:'sh600036',name:'招商银行'},{code:'sh600000',name:'浦发银行'},
+  {code:'sh601166',name:'兴业银行'},{code:'sh600016',name:'民生银行'},{code:'sh600015',name:'华夏银行'},
+  {code:'sh601318',name:'中国平安'},{code:'sh601628',name:'中国人寿'},{code:'sh601601',name:'中国太保'},
+  {code:'sh600030',name:'中信证券'},{code:'sh300059',name:'东方财富'},{code:'sh600570',name:'恒生电子'},
+  {code:'sh601857',name:'中国石油'},{code:'sh600028',name:'中国石化'},{code:'sh600938',name:'中国海油'},
+  {code:'sh601088',name:'中国神华'},{code:'sh600900',name:'长江电力'},
+  {code:'sh600519',name:'贵州茅台'},{code:'sz000858',name:'五粮液'},{code:'sh600809',name:'山西汾酒'},
+  {code:'sh600887',name:'伊利股份'},{code:'sh600690',name:'海尔智家'},{code:'sz000333',name:'美的集团'},
+  {code:'sh600276',name:'恒瑞医药'},{code:'sz000651',name:'格力电器'},
+  {code:'sh600050',name:'中国联通'},{code:'sh600941',name:'中国移动'},{code:'sh600588',name:'用友网络'},
+  {code:'sh601012',name:'隆基绿能'},
+  {code:'sz000002',name:'万科A'},{code:'sh600048',name:'保利发展'},{code:'sh601668',name:'中国建筑'},
+  {code:'sh601186',name:'中国铁建'},{code:'sh601390',name:'中国中铁'},
+  {code:'sh600019',name:'宝钢股份'},{code:'sh601766',name:'中国中车'},{code:'sh600031',name:'三一重工'},
+  {code:'sh600104',name:'上汽集团'},{code:'sz002594',name:'比亚迪'},{code:'sh601633',name:'长城汽车'},
+  {code:'sh600741',name:'华域汽车'},
+  {code:'sz300760',name:'迈瑞医疗'},{code:'sh603259',name:'药明康德'},{code:'sz300015',name:'爱尔眼科'},
+  {code:'sh601899',name:'紫金矿业'},{code:'sh603993',name:'洛阳钼业'},{code:'sh600362',name:'江西铜业'},
+  {code:'sh600309',name:'万华化学'},{code:'sh600160',name:'浙江龙盛'},
+  {code:'sh601919',name:'中远海控'},{code:'sh601872',name:'招商轮船'},
+  {code:'sh601111',name:'中国国航'},{code:'sh600029',name:'南方航空'},{code:'sh600115',name:'东方航空'},
+  {code:'sh600315',name:'上海家化'},{code:'sh600438',name:'通威股份'},
+  {code:'sh600760',name:'中航沈飞'},{code:'sh000768',name:'中航西飞'},{code:'sh600893',name:'航发动力'},
+  {code:'sh510300',name:'沪深300ETF'},{code:'sh510500',name:'中证500ETF'},{code:'sh510050',name:'上证50ETF'},
+  {code:'sh159915',name:'创业板ETF'},{code:'sh512880',name:'证券ETF'},{code:'sh512660',name:'军工ETF'},
+  {code:'sh518880',name:'黄金ETF'},{code:'sh513500',name:'标普500ETF'},
+  {code:'sh601225',name:'陕西煤业'},{code:'sh600188',name:'兖矿能源'},
+  {code:'sh600905',name:'三峡能源'},{code:'sh600274',name:'阳光电源'},{code:'sz300274',name:'阳光阳光'},
+  {code:'sh601615',name:'明阳智能'},{code:'sh002459',name:'晶澳科技'},
+  {code:'sh688981',name:'中芯国际'},{code:'sh603986',name:'兆易创新'},{code:'sz002475',name:'立讯精密'},
+  {code:'sz002555',name:'三七互娱'},{code:'sh600637',name:'东方明珠'},
+  {code:'sh600487',name:'亨通光电'},{code:'sh601869',name:'长飞光纤'},{code:'sz300498',name:'温氏股份'},
+];
+
+const GBK_DECODER = new TextDecoder('gbk');
+
 const state = {
-  tab: 'search',
-  query: '',
-  searchResults: [],
-  searching: false,
-  viewStack: [],
-  selectedStock: null,
-  loadingDetail: false,
-  practice: [],
-  livePrices: {},
-  showAddModal: false,
-  addForm: {},
+  tab: 'search', query: '', searchResults: [], searching: false,
+  viewStack: [], selectedStock: null, loadingDetail: false,
+  practice: [], livePrices: {}, showAddModal: false, addForm: {},
 };
 
-function $ (s) { return document.querySelector(s); }
-function $$ (s) { return document.querySelectorAll(s); }
+function $(s){return document.querySelector(s);}
+function escHtml(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function escAttr(s){if(s==null)return'';return String(s).replace(/'/g,'&#39;').replace(/"/g,'&quot;');}
+function updatePracticeCount(){var el=$('#practice-count');if(el)el.textContent=state.practice.length?'('+state.practice.length+')':'';}
+function weekPosColor(pos){if(pos==null)return'#999';if(pos<30)return'#22c55e';if(pos>70)return'#ef4444';return'#f59e0b';}
+function calcSignal(pos){if(pos==null)return{label:'持有',color:'#f59e0b'};if(pos<30)return{label:'买入',color:'#22c55e'};if(pos>70)return{label:'卖出',color:'#ef4444'};return{label:'持有',color:'#f59e0b'};}
 
-function escHtml(s) {
-  if (s == null) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-function escAttr(s) {
-  if (s == null) return '';
-  return String(s).replace(/'/g,'&#39;').replace(/"/g,'&quot;');
-}
-
-function updatePracticeCount() {
-  const el = $('#practice-count');
-  if (el) el.textContent = state.practice.length ? `(${state.practice.length})` : '';
-}
-
-function weekPosColor(pos) {
-  if (pos == null) return '#999';
-  if (pos < 30) return '#22c55e';
-  if (pos > 70) return '#ef4444';
-  return '#f59e0b';
-}
-
-function calcSignal(pos) {
-  if (pos == null) return { label: '持有', color: '#f59e0b' };
-  if (pos < 30) return { label: '买入', color: '#22c55e' };
-  if (pos > 70) return { label: '卖出', color: '#ef4444' };
-  return { label: '持有', color: '#f59e0b' };
-}
-
-// ===== 渲染入口 =====
-function render() {
-  $('tab-search').classList.toggle('active', state.tab === 'search');
-  $('tab-practice').classList.toggle('active', state.tab === 'practice');
-  if (state.tab === 'search') renderSearch();
-  else renderPractice();
-}
-
-function switchTab(tab) {
-  state.tab = tab;
-  if (tab === 'practice') {
-    loadPractice();
-    refreshLivePrices();
+// 腾讯行情 API（CORS 已通）
+async function fetchStockDetail(code){
+  let secid=code;
+  if(/^\d{6}$/.test(code))secid=code.startsWith('6')?'sh'+code:'sz'+code;
+  var resp=await fetch('https://qt.gtimg.cn/q='+secid,{headers:{'Referer':'https://gu.qq.com'}});
+  if(!resp.ok)return{error:'网络请求失败'};
+  var buf=await resp.arrayBuffer();
+  var bodyStr=GBK_DECODER.decode(buf);
+  var match=bodyStr.match(/="([^"]+)"/);
+  if(!match)return{error:'股票未找到'};
+  var f=match[1].split('~');
+  if(!f[3])return{error:'数据解析失败'};
+  var price=parseFloat(f[3])||0;
+  var pe=parseFloat(f[39])||null;
+  var pb=parseFloat(f[43])||null;
+  var high52=parseFloat(f[33])||null;
+  var low52=parseFloat(f[34])||null;
+  var week52Pos=null;
+  if(high52&&low52&&high52>low52&&price){
+    week52Pos=Math.round(((price-low52)/(high52-low52))*1000)/10;
   }
+  return{
+    code:code,name:f[1]||code,price:price,
+    pe:(pe!==null&&pe>0)?Math.round(pe*100)/100:null,
+    pb:(pb!==null&&pb>0)?Math.round(pb*100)/100:null,
+    high52:high52,low52:low52,week52Pos:week52Pos,
+    peOk:pe!==null&&pe>0&&pe<=20,
+    pbOk:pb!==null&&pb>0&&pb<=2,
+    suggestion:week52Pos!==null?(week52Pos<30?'🟢 建议买入':week52Pos>70?'🔴 建议卖出':'🟡 持有'):'⚪ 数据不足',
+  };
+}
+
+// 实践表 localStorage
+function loadPractice(){try{return JSON.parse(localStorage.getItem('dashu-practice')||'[]');}catch(e){return[];}}
+function savePractice(list){localStorage.setItem('dashu-practice',JSON.stringify(list));}
+
+// 搜索
+function fuzzyMatch(q){
+  var ql=q.toLowerCase().trim();
+  if(!ql)return[];
+  var results=[];
+  for(var i=0;i<STOCKS.length;i++){
+    var s=STOCKS[i];
+    var name=s.name.toLowerCase();
+    var code=s.code.toLowerCase();
+    if(code===ql||code==='sh'+ql||code==='sz'+ql){results.push({...s,_score:100});continue;}
+    if(code.endsWith(ql)&&ql.length>=3){results.push({...s,_score:80});continue;}
+    if(name.includes(ql)){results.push({...s,_score:60});continue;}
+  }
+  results.sort(function(a,b){return b._score-a._score;});
+  return results.slice(0,12).map(function(x){var r={};for(var k in x)if(k!=='_score')r[k]=x[k];return r;});
+}
+
+// 渲染入口
+function render(){
+  $('tab-search').classList.toggle('active',state.tab==='search');
+  $('tab-practice').classList.toggle('active',state.tab==='practice');
+  if(state.tab==='search')renderSearch();else renderPractice();
+}
+function switchTab(tab){
+  state.tab=tab;
+  if(tab==='practice'){state.practice=loadPractice();refreshLivePrices();}
   render();
 }
 
-// ===== 搜索页 =====
-function renderSearch() {
-  const c = $('#content');
-  if (state.viewStack.length === 0) {
-    c.innerHTML = `
-      <div class="search-box">
-        <input id="search-input" type="text" placeholder="输入股票代码或名称，如 600519、茅台" value="${escAttr(state.query)}" autocomplete="off" autofocus>
-        <span class="search-status" id="search-status">${state.searching ? '<span class="loading"></span>搜索中…' : ''}</span>
-      </div>
-      <div id="search-results">${state.searchResults.length ? renderSearchResults() : '<div style="text-align:center;padding:40px;color:#475569;font-size:14px">输入代码或名称搜索 · 支持模糊匹配</div>'}</div>
-    `;
-    const inp = $('#search-input');
-    inp.addEventListener('input', e => handleSearchInput(e.target.value));
+function renderSearch(){
+  var c=$('#content');
+  if(state.viewStack.length===0){
+    c.innerHTML='<div class="search-box">'+
+      '<input id="search-input" type="text" placeholder="输入股票代码或名称，如 600519、茅台" value="'+escAttr(state.query)+'" autocomplete="off" autofocus>'+
+      '<span class="search-status" id="search-status">'+(state.searching?'<span class="loading"></span>搜索中…':'')+'</span>'+
+      '</div>'+
+      '<div id="search-results">'+(state.searchResults.length?renderSearchResults():'<div style="text-align:center;padding:40px;color:#475569;font-size:14px">输入代码或名称搜索 · 支持模糊匹配</div>')+'</div>';
+    var inp=$('#search-input');
+    inp.addEventListener('input',function(e){state.query=e.target.value;handleSearch(state.query);});
     inp.focus();
-  } else {
-    c.innerHTML = renderDetail();
+  }else{
+    c.innerHTML=renderDetail();
   }
 }
 
-function renderSearchResults() {
-  return `<div class="card" style="padding:0;overflow:hidden">${state.searchResults.map(s => `
-    <div class="stock-item" onclick="viewStock(${escAttr(JSON.stringify(s))})">
-      <div><div class="name">${escHtml(s.name)}</div><div class="code">${escHtml(s.code.replace(/^(sh|sz|bj)/i,''))}</div></div>
-      <div class="arrow">›</div>
-    </div>`).join('')}</div>`;
-}
-
-function renderDetail() {
-  const s = state.selectedStock;
-  if (!s) return '<div style="padding:40px;text-align:center;color:#64748b">加载中…</div>';
-  const peOk = s.pe != null && s.pe <= 20;
-  const pbOk = s.pb != null && s.pb <= 2;
-  const peVal = s.pe != null ? s.pe.toFixed(2) : '—';
-  const pbVal = s.pb != null ? s.pb.toFixed(2) : '—';
-  const signal = calcSignal(s.week52Pos);
-  const peClass = s.pe != null ? (peOk ? 'metric-ok' : 'metric-fail') : 'metric-neutral';
-  const pbClass = s.pb != null ? (pbOk ? 'metric-ok' : 'metric-fail') : 'metric-neutral';
-  const inPractice = state.practice.some(p => {
-    const pc = (p.code||'').replace(/^(sh|sz|bj)/i,'');
-    const sc = (s.code||'').replace(/^(sh|sz|bj)/i,'');
-    return pc === sc || p.code === s.code;
-  });
-
-  let signalHtml = '';
-  if (s.week52Pos != null) {
-    signalHtml = `<div class="signal" style="background:${signal.color}22;color:${signal.color};border-color:${signal.color}44">${signal.label === '买入' ? '🟢 '+s.week52Pos+'%（建议买入）' : signal.label === '卖出' ? '🔴 '+s.week52Pos+'%（建议卖出）' : '🟡 '+s.week52Pos+'%（持有）'}</div>`;
+function renderSearchResults(){
+  var html='<div class="card" style="padding:0;overflow:hidden">';
+  for(var i=0;i<state.searchResults.length;i++){
+    var s=state.searchResults[i];
+    html+='<div class="stock-item" onclick="viewStock('+escAttr(JSON.stringify(s))+
+      ')"><div><div class="name">'+escHtml(s.name)+'</div><div class="code">'+escHtml(s.code.replace(/^(sh|sz|bj)/i,''))+'</div></div><div class="arrow">›</div></div>';
   }
-
-  return `
-    <button class="back-btn" onclick="goBack()">← 返回列表</button>
-    <div class="card">
-      <div class="detail-header">
-        <div>
-          <div class="detail-name">${escHtml(s.name)}</div>
-          <div class="detail-code">${escHtml(s.code?.replace(/^(sh|sz|bj)/i,''))}</div>
-        </div>
-        <div>
-          <div class="detail-price">${s.price ? '¥'+s.price : '—'}</div>
-          ${s.pe != null ? `<div class="detail-meta">PE ${peVal} · PB ${pbVal}</div>` : ''}
-        </div>
-      </div>
-
-      ${state.loadingDetail ? '<div style="text-align:center;padding:20px;color:#60a5fa"><span class="loading"></span>加载指标数据…</div>' : `
-      <div class="metric-grid">
-        <div class="metric">
-          <div class="metric-label">市盈率 PE</div>
-          <div class="metric-value ${peClass}">${peVal}</div>
-          <div class="metric-note ${peClass}">${s.pe != null ? (peOk ? '✅ 符合' : '❌ 不符合') : '数据不足'}</div>
-          <div class="metric-note metric-neutral">PE ≤ 20</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">市净率 PB</div>
-          <div class="metric-value ${pbClass}">${pbVal}</div>
-          <div class="metric-note ${pbClass}">${s.pb != null ? (pbOk ? '✅ 符合' : '❌ 不符合') : '数据不足'}</div>
-          <div class="metric-note metric-neutral">PB ≤ 2</div>
-        </div>
-      </div>
-
-      ${s.week52Pos != null ? `
-      <div class="week52">
-        <div class="week52-header">
-          <span class="week52-title">52周价格位置</span>
-          <span class="week52-badge" style="background:${weekPosColor(s.week52Pos)}">${s.week52Pos}%</span>
-        </div>
-        ${s.high52 && s.low52 ? `<div class="week52-info">52周最高 ¥${s.high52} · 52周最低 ¥${s.low52}</div>` : ''}
-        <div class="week52-bar">
-          <div class="week52-fill" style="width:${s.week52Pos}%;background:${weekPosColor(s.week52Pos)}"></div>
-          <div class="week52-line" style="left:30%"></div>
-          <div class="week52-line" style="left:70%"></div>
-        </div>
-        <div class="week52-labels"><span>最低</span><span style="color:#22c55e">←买入30%</span><span>持有</span><span style="color:#ef4444">卖出70%→</span><span>最高</span></div>
-      </div>` : ''}
-
-      ${signalHtml}
-
-      <button class="add-btn" onclick="openAddModal()" ${inPractice?'style="background:#334155;color:#94a3b8" disabled':''}>${inPractice ? '✅ 已在实践表' : '➕ 加入实践表'}</button>
-      `}
-    </div>`;
+  return html+'</div>';
 }
 
-// ===== 实践表页 =====
-function renderPractice() {
-  const c = $('#content');
-  if (state.practice.length === 0) {
-    c.innerHTML = `<div class="practice-empty"><div class="icon">📋</div><div class="title">实践表是空的</div><div class="desc">去「股票查询」里找股票加入吧</div></div>`;
+function renderDetail(){
+  var s=state.selectedStock;
+  if(!s)return'<div style="padding:40px;text-align:center;color:#64748b">加载中…</div>';
+  var peOk=s.pe!=null&&s.pe<=20;
+  var pbOk=s.pb!=null&&s.pb<=2;
+  var peVal=s.pe!=null?s.pe.toFixed(2):'—';
+  var pbVal=s.pb!=null?s.pb.toFixed(2):'—';
+  var signal=calcSignal(s.week52Pos);
+  var peClass=s.pe!=null?(peOk?'metric-ok':'metric-fail'):'metric-neutral';
+  var pbClass=s.pb!=null?(pbOk?'metric-ok':'metric-fail'):'metric-neutral';
+  var inPractice=state.practice.some(function(p){return p.code===s.code;});
+  var signalHtml='';
+  if(s.week52Pos!=null){
+    signalHtml='<div class="signal" style="background:'+signal.color+'22;color:'+signal.color+';border-color:'+signal.color+'44">'+
+      (signal.label==='买入'?'🟢 '+s.week52Pos+'%（建议买入）':signal.label==='卖出'?'🔴 '+s.week52Pos+'%（建议卖出）':'🟡 '+s.week52Pos+'%（持有）')+'</div>';
+  }
+  var detailHtml='<button class="back-btn" onclick="goBack()">← 返回列表</button><div class="card">'+
+    '<div class="detail-header"><div><div class="detail-name">'+escHtml(s.name)+'</div><div class="detail-code">'+escHtml((s.code||'').replace(/^(sh|sz|bj)/i,''))+'</div></div>'+
+    '<div><div class="detail-price">'+(s.price?'¥'+s.price:'—')+'</div>'+(s.pe!=null?'<div class="detail-meta">PE '+peVal+' · PB '+pbVal+'</div>':'')+'</div></div>';
+  if(state.loadingDetail){
+    detailHtml+='<div style="text-align:center;padding:20px;color:#60a5fa"><span class="loading"></span>加载指标数据…</div>';
+  }else{
+    detailHtml+='<div class="metric-grid">'+
+      '<div class="metric"><div class="metric-label">市盈率 PE</div><div class="metric-value '+peClass+'">'+peVal+'</div><div class="metric-note '+peClass+'">'+(s.pe!=null?(peOk?'✅ 符合':'❌ 不符合'):'数据不足')+'</div><div class="metric-note metric-neutral">PE ≤ 20</div></div>'+
+      '<div class="metric"><div class="metric-label">市净率 PB</div><div class="metric-value '+pbClass+'">'+pbVal+'</div><div class="metric-note '+pbClass+'">'+(s.pb!=null?(pbOk?'✅ 符合':'❌ 不符合'):'数据不足')+'</div><div class="metric-note metric-neutral">PB ≤ 2</div></div>'+
+      '</div>';
+    if(s.week52Pos!=null){
+      detailHtml+='<div class="week52">'+
+        '<div class="week52-header"><span class="week52-title">52周价格位置</span><span class="week52-badge" style="background:'+weekPosColor(s.week52Pos)+'">'+s.week52Pos+'%</span></div>'+
+        (s.high52&&s.low52?'<div class="week52-info">52周最高 ¥'+s.high52+' · 52周最低 ¥'+s.low52+'</div>':'')+
+        '<div class="week52-bar"><div class="week52-fill" style="width:'+s.week52Pos+'%;background:'+weekPosColor(s.week52Pos)+'"></div><div class="week52-line" style="left:30%"></div><div class="week52-line" style="left:70%"></div></div>'+
+        '<div class="week52-labels"><span>最低</span><span style="color:#22c55e">←买入30%</span><span>持有</span><span style="color:#ef4444">卖出70%→</span><span>最高</span></div>'+
+        '</div>';
+    }
+    detailHtml+=signalHtml+'<button class="add-btn" onclick="openAddModal()" '+(inPractice?'style="background:#334155;color:#94a3b8" disabled':'')+'>'+(inPractice?'✅ 已在实践表':'➕ 加入实践表')+'</button>';
+  }
+  return detailHtml+'</div>';
+}
+
+function renderPractice(){
+  var c=$('#content');
+  if(state.practice.length===0){
+    c.innerHTML='<div class="practice-empty"><div class="icon">📋</div><div class="title">实践表是空的</div><div class="desc">去「股票查询」里找股票加入吧</div></div>';
     return;
   }
-  c.innerHTML = state.practice.map(item => {
-    const live = state.livePrices[item.code] || {};
-    const currentPrice = live.price || item.buyPrice || 0;
-    const gain = item.buyPrice && currentPrice ? (((currentPrice - item.buyPrice) / item.buyPrice) * 100).toFixed(2) : null;
-    const gainAmount = item.buyPrice && item.shares && currentPrice ? ((currentPrice - item.buyPrice) * item.shares).toFixed(0) : null;
-    const pos = live.week52Pos ?? item.week52PosAtBuy ?? null;
-    const signal = calcSignal(pos);
-    return `<div class="practice-item">
-      <div class="practice-header">
-        <div>
-          <div class="practice-name">${escHtml(item.name)}</div>
-          <div class="practice-code">${escHtml(item.code.replace(/^(sh|sz|bj)/i,''))}</div>
-        </div>
-        <button class="practice-delete" onclick="removeItem('${escAttr(item.code)}')">✕</button>
-      </div>
-      <div class="practice-grid">
-        <div class="practice-grid-item"><div class="practice-grid-label">买入价</div><div class="practice-grid-value">${item.buyPrice ? '¥'+item.buyPrice : '—'}</div></div>
-        <div class="practice-grid-item"><div class="practice-grid-label">数量</div><div class="practice-grid-value">${item.shares ? item.shares+'股' : '—'}</div></div>
-        <div class="practice-grid-item"><div class="practice-grid-label">当前价</div><div class="practice-grid-value">${currentPrice ? '¥'+currentPrice : '…'}</div></div>
-      </div>
-      ${gain != null ? `<div class="practice-gain" style="color:${parseFloat(gain)>=0?'#ef4444':'#22c55e'}">${parseFloat(gain)>=0?'+':''}${gain}% ${gainAmount != null ? '('+(parseFloat(gain)>=0?'+':'')+'¥'+gainAmount+')' : ''}</div>` : ''}
-      <div style="margin-bottom:8px">
-        <span class="practice-tag">PE ${item.peAtBuy!=null?item.peAtBuy.toFixed(2):'?'}→${live.pe!=null?live.pe.toFixed(2):'?'}</span>
-        <span class="practice-tag">PB ${item.pbAtBuy!=null?item.pbAtBuy.toFixed(2):'?'}→${live.pb!=null?live.pb.toFixed(2):'?'}</span>
-        <span class="practice-tag">52W ${item.week52PosAtBuy!=null?item.week52PosAtBuy+'%':'?'}→${live.week52Pos!=null?live.week52Pos+'%':'?'}</span>
-      </div>
-      <div class="practice-signal" style="background:${signal.color}22;color:${signal.color}">📊 ${signal.label} <span style="font-size:11px;font-weight:400">${pos != null ? pos+'%' : ''}</span></div>
-    </div>`;
-  }).join('') + `<div class="footer">每30秒自动刷新 · 买入&lt;30% · 持有30-70% · 卖出&gt;70%</div>`;
-}
-
-// ===== API 调用 =====
-let searchTimer = null;
-function handleSearchInput(val) {
-  state.query = val;
-  clearTimeout(searchTimer);
-  if (!val.trim()) { state.searchResults = []; render(); return; }
-  state.searching = true;
-  render();
-  searchTimer = setTimeout(async () => {
-    try {
-      const r = await fetch(`/api/search?q=${encodeURIComponent(val.trim())}`);
-      const d = await r.json();
-      state.searchResults = d.stocks || [];
-    } catch(e) { state.searchResults = []; }
-    state.searching = false;
-    render();
-  }, 300);
-}
-
-async function viewStock(stock) {
-  state.viewStack.push('detail');
-  state.selectedStock = stock;
-  state.loadingDetail = true;
-  render();
-  try {
-    const r = await fetch(`/api/stock/${encodeURIComponent(stock.code)}`);
-    const d = await r.json();
-    if (!d.error) {
-      state.selectedStock = d;
-      state.livePrices[d.code] = d;
+  var html='';
+  for(var i=0;i<state.practice.length;i++){
+    var item=state.practice[i];
+    var live=state.livePrices[item.code]||{};
+    var currentPrice=live.price||item.buyPrice||0;
+    var gain=item.buyPrice&&currentPrice?(((currentPrice-item.buyPrice)/item.buyPrice)*100).toFixed(2):null;
+    var gainAmt=item.buyPrice&&item.shares&&currentPrice?((currentPrice-item.buyPrice)*item.shares).toFixed(0):null;
+    var pos=live.week52Pos??item.week52PosAtBuy??null;
+    var signal=calcSignal(pos);
+    var gainColor=parseFloat(gain)>=0?'#ef4444':'#22c55e';
+    html+='<div class="practice-item">'+
+      '<div class="practice-header"><div><div class="practice-name">'+escHtml(item.name)+'</div><div class="practice-code">'+escHtml(item.code.replace(/^(sh|sz|bj)/i,''))+'</div></div>'+
+      '<button class="practice-delete" onclick="removeItem(\''+escAttr(item.code)+'\')">✕</button></div>'+
+      '<div class="practice-grid">'+
+        '<div class="practice-grid-item"><div class="practice-grid-label">买入价</div><div class="practice-grid-value">'+(item.buyPrice?'¥'+item.buyPrice:'—')+'</div></div>'+
+        '<div class="practice-grid-item"><div class="practice-grid-label">数量</div><div class="practice-grid-value">'+(item.shares?item.shares+'股':'—')+'</div></div>'+
+        '<div class="practice-grid-item"><div class="practice-grid-label">当前价</div><div class="practice-grid-value">'+(currentPrice?'¥'+currentPrice:'…')+'</div></div>'+
+      '</div>';
+    if(gain!=null){
+      html+='<div class="practice-gain" style="color:'+gainColor+'">'+(parseFloat(gain)>=0?'+':'')+gain+'% '+(gainAmt!=null?'('+(parseFloat(gain)>=0?'+':'')+'¥'+gainAmt+')':'')+'</div>';
     }
-  } catch(e) {}
-  state.loadingDetail = false;
+    html+='<div style="margin-bottom:8px">'+
+      '<span class="practice-tag">PE '+(item.peAtBuy!=null?item.peAtBuy.toFixed(2):'?')+'→'+(live.pe!=null?live.pe.toFixed(2):'?')+'</span>'+
+      '<span class="practice-tag">PB '+(item.pbAtBuy!=null?item.pbAtBuy.toFixed(2):'?')+'→'+(live.pb!=null?live.pb.toFixed(2):'?')+'</span>'+
+      '<span class="practice-tag">52W '+(item.week52PosAtBuy!=null?item.week52PosAtBuy+'%':'?')+'→'+(live.week52Pos!=null?live.week52Pos+'%':'?')+'</span>'+
+      '</div>'+
+      '<div class="practice-signal" style="background:'+signal.color+'22;color:'+signal.color+'">📊 '+signal.label+' <span style="font-size:11px;font-weight:400">'+(pos!=null?pos+'%':'')+'</span></div>'+
+      '</div>';
+  }
+  c.innerHTML=html+'<div class="footer">每30秒自动刷新 · 买入&lt;30% · 持有30-70% · 卖出&gt;70%</div>';
+}
+
+var searchTimer=null;
+function handleSearch(val){
+  clearTimeout(searchTimer);
+  if(!val.trim()){state.searchResults=[];render();return;}
+  state.searching=true;render();
+  searchTimer=setTimeout(function(){
+    state.searchResults=fuzzyMatch(val.trim());
+    state.searching=false;render();
+  },200);
+}
+
+async function viewStock(stock){
+  state.viewStack.push('detail');
+  state.selectedStock=stock;
+  state.loadingDetail=true;
+  render();
+  var d=await fetchStockDetail(stock.code);
+  if(!d.error){state.selectedStock={...stock,...d};state.livePrices[stock.code]=d;}
+  state.loadingDetail=false;
   render();
 }
 
-function goBack() {
-  state.viewStack.pop();
-  state.selectedStock = null;
-  render();
-}
+function goBack(){state.viewStack.pop();state.selectedStock=null;render();}
 
-async function loadPractice() {
-  try {
-    const r = await fetch('/api/practice');
-    state.practice = await r.json();
-    if (!Array.isArray(state.practice)) state.practice = [];
-  } catch(e) { state.practice = []; }
-  updatePracticeCount();
-}
-
-async function refreshLivePrices() {
-  for (const item of state.practice) {
-    try {
-      const r = await fetch(`/api/stock/${encodeURIComponent(item.code)}`);
-      const d = await r.json();
-      if (!d.error) state.livePrices[item.code] = d;
-    } catch(e) {}
+async function refreshLivePrices(){
+  for(var i=0;i<state.practice.length;i++){
+    var item=state.practice[i];
+    var d=await fetchStockDetail(item.code);
+    if(!d.error)state.livePrices[item.code]=d;
   }
   render();
 }
 
-function openAddModal() {
-  const s = state.selectedStock;
-  if (!s) return;
-  state.addForm = {
-    code: s.code,
-    name: s.name,
-    buyPrice: s.price || '',
-    shares: '',
-  };
+function openAddModal(){
+  var s=state.selectedStock;
+  if(!s)return;
+  state.addForm={code:s.code,name:s.name,buyPrice:s.price||'',shares:''};
   renderModal();
 }
 
-function closeModal() {
-  state.showAddModal = false;
-  const el = $('.modal-overlay');
-  if (el) el.remove();
+function closeModal(){
+  state.showAddModal=false;
+  var el=$('.modal-overlay');if(el)el.remove();
 }
 
-function renderModal() {
-  const f = state.addForm;
-  const html = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()">
-  <div class="modal">
-    <div class="modal-title">加入实践表</div>
-    <div class="modal-field"><label class="modal-label">股票代码</label><input class="modal-input" value="${escAttr(f.code||'')}" disabled></div>
-    <div class="modal-field"><label class="modal-label">股票名称</label><input class="modal-input" value="${escAttr(f.name||'')}" disabled></div>
-    <div class="modal-field"><label class="modal-label">买入价格（元）</label><input class="modal-input" type="number" step="0.01" placeholder="填实际买入价或计划买入价" value="${escAttr(f.buyPrice||'')}" id="modal-buyPrice"></div>
-    <div class="modal-field"><label class="modal-label">买入数量（股）</label><input class="modal-input" type="number" step="100" placeholder="填买入多少股（100的整数倍）" value="${escAttr(f.shares||'')}" id="modal-shares"></div>
-    <div class="modal-actions">
-      <button class="modal-cancel" onclick="closeModal()">取消</button>
-      <button class="modal-confirm" onclick="submitAdd()">确认添加</button>
-    </div>
-  </div></div>`;
-  const existing = $('.modal-overlay');
-  if (existing) existing.remove();
-  document.body.insertAdjacentHTML('beforeend', html);
+function renderModal(){
+  var f=state.addForm;
+  var html='<div class="modal-overlay" onclick="if(event.target===this)closeModal()">'+
+    '<div class="modal"><div class="modal-title">加入实践表</div>'+
+    '<div class="modal-field"><label class="modal-label">股票代码</label><input class="modal-input" value="'+escAttr(f.code||'')+'" disabled></div>'+
+    '<div class="modal-field"><label class="modal-label">股票名称</label><input class="modal-input" value="'+escAttr(f.name||'')+'" disabled></div>'+
+    '<div class="modal-field"><label class="modal-label">买入价格（元）</label><input class="modal-input" type="number" step="0.01" placeholder="填实际买入价或计划买入价" value="'+escAttr(f.buyPrice||'')+'" id="modal-buyPrice"></div>'+
+    '<div class="modal-field"><label class="modal-label">买入数量（股）</label><input class="modal-input" type="number" step="100" placeholder="填买入多少股（100的整数倍）" value="'+escAttr(f.shares||'')+'" id="modal-shares"></div>'+
+    '<div class="modal-actions"><button class="modal-cancel" onclick="closeModal()">取消</button><button class="modal-confirm" onclick="submitAdd()">确认添加</button></div>'+
+    '</div></div>';
+  var existing=$('.modal-overlay');if(existing)existing.remove();
+  document.body.insertAdjacentHTML('beforeend',html);
 }
 
-async function submitAdd() {
-  const buyPrice = parseFloat($('#modal-buyPrice').value) || 0;
-  const shares = parseInt($('#modal-shares').value) || 0;
-  if (!buyPrice || !shares) { alert('请填写买入价和数量'); return; }
-  const s = state.selectedStock;
-  try {
-    await fetch('/api/practice/add', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ code: s.code, name: s.name, buyPrice, shares })
-    });
-  } catch(e) {}
-  closeModal();
-  await loadPractice();
-  render();
+async function submitAdd(){
+  var buyPrice=parseFloat($('#modal-buyPrice').value)||0;
+  var shares=parseInt($('#modal-shares').value)||0;
+  if(!buyPrice||!shares){alert('请填写买入价和数量');return;}
+  var s=state.selectedStock;
+  var live=state.livePrices[s.code]||{};
+  var list=loadPractice();
+  var idx=list.findIndex(function(p){return p.code===s.code;});
+  var entry={code:s.code,name:s.name,buyPrice:buyPrice,shares:shares,
+    peAtBuy:live.pe??null,pbAtBuy:live.pb??null,week52PosAtBuy:live.week52Pos??null,
+    addedAt:new Date().toISOString()};
+  if(idx>=0)list[idx]=entry;else list.push(entry);
+  savePractice(list);
+  state.practice=list;
+  closeModal();render();updatePracticeCount();
 }
 
-async function removeItem(code) {
-  try {
-    await fetch(`/api/practice/remove/${encodeURIComponent(code)}`, { method: 'DELETE' });
-  } catch(e) {}
-  await loadPractice();
-  if (state.tab === 'practice') refreshLivePrices();
+async function removeItem(code){
+  var list=loadPractice().filter(function(p){return p.code!==code;});
+  savePractice(list);
+  state.practice=list;
+  render();updatePracticeCount();
 }
 
-// ===== 初始化 =====
-loadPractice().then(() => render());
-setInterval(() => {
-  if (state.tab === 'practice' && state.practice.length > 0) refreshLivePrices();
-}, 30000);
+// Init
+state.practice=loadPractice();
+updatePracticeCount();
+render();
+setInterval(function(){if(state.tab==='practice'&&state.practice.length>0)refreshLivePrices();},30000);
 </script>
 </body>
 </html>
