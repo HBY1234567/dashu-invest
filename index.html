@@ -358,8 +358,9 @@ function fuzzyMatch(q){
 // 渲染
 // ============================================================
 function render(){
-  $('tab-search').classList.toggle('active',state.tab==='search');
-  $('tab-practice').classList.toggle('active',state.tab==='practice');
+  var ts=$('#tab-search'),tp=$('#tab-practice');
+  if(ts)ts.classList.toggle('active',state.tab==='search');
+  if(tp)tp.classList.toggle('active',state.tab==='practice');
   if(state.tab==='search')renderSearch();else renderPractice();
 }
 
