@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>大数投资</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+input,button{font-family:inherit}
+.header{background:linear-gradient(135deg,#1e3a5f 0%,#0f172a 100%);padding:20px 16px 16px;border-bottom:1px solid #1e293b}
+.header h1{font-size:22px;font-weight:700;color:#fff}
+.header .sub{font-size:12px;color:#64748b;margin-top:4px}
+.tabs{display:flex;border-bottom:1px solid #1e293b;background:#1e293b}
+.tab{flex:1;padding:14px 0;text-align:center;font-size:15px;color:#64748b;cursor:pointer;border:none;background:none;transition:all .2s;border-bottom:2px solid transparent}
+.tab.active{color:#60a5fa;border-bottom-color:#60a5fa;font-weight:600}
+.content{padding:16px}
+.search-box{position:relative;margin-bottom:16px}
+.search-box input{width:100%;padding:12px 14px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:15px;outline:none;transition:border-color .2s}
+.search-box input:focus{border-color:#60a5fa}
+.search-box input::placeholder{color:#475569}
+.search-status{position:absolute;right:14px;top:12px;font-size:13px;color:#60a5fa}
+.card{background:#1e293b;border:1px solid #334155;border-radius:14px;padding:18px;margin-bottom:12px}
+.stock-item{padding:12px 14px;border-bottom:1px solid #0f172a;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:background .15s}
+.stock-item:last-child{border-bottom:none}
+.stock-item:hover,.stock-item:active{background:#263348}
+.stock-item .name{font-size:15px;font-weight:600;color:#fff}
+.stock-item .code{font-size:12px;color:#64748b;margin-top:2px}
+.stock-item .arrow{color:#64748b;font-size:18px}
+.detail-name{font-size:20px;font-weight:700;color:#fff;margin-bottom:2px}
+.detail-code{font-size:13px;color:#64748b}
+.detail-price{font-size:26px;font-weight:700;color:#fff;text-align:right}
+.detail-meta{font-size:12px;color:#64748b;margin-top:2px;text-align:right}
+.detail-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
+.back-btn{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:#60a5fa;cursor:pointer;margin-bottom:12px;background:none;border:none;padding:0}
+.back-btn:active{opacity:.7}
+.metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.metric{background:#0f172a;border-radius:10px;padding:10px 12px;text-align:center}
+.metric-label{font-size:11px;color:#64748b;margin-bottom:4px}
+.metric-value{font-size:22px;font-weight:700}
+.metric-note{font-size:10px;margin-top:2px}
+.metric-ok{color:#22c55e}.metric-fail{color:#ef4444}.metric-neutral{color:#64748b}
+.week52{background:#0f172a;border-radius:10px;padding:12px 14px;margin-bottom:14px}
+.week52-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.week52-title{font-size:13px;color:#64748b}
+.week52-badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;color:#fff}
+.week52-info{font-size:11px;color:#475569;margin-bottom:8px}
+.week52-bar{background:#1e293b;border-radius:6px;height:10px;position:relative;overflow:hidden}
+.week52-fill{position:absolute;left:0;top:0;bottom:0;border-radius:6px;transition:width .3s}
+.week52-line{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.3)}
+.week52-labels{display:flex;justify-content:space-between;font-size:10px;color:#475569;margin-top:4px}
+.signal{text-align:center;padding:12px;border-radius:10px;font-size:15px;font-weight:700;border:1px solid}
+.add-btn{width:100%;padding:13px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;margin-top:12px}
+.add-btn:active{opacity:.85}
+.practice-empty{text-align:center;padding:60px 20px;color:#475569}
+.practice-empty .icon{font-size:48px;margin-bottom:12px}
+.practice-empty .title{font-size:16px;font-weight:600}
+.practice-empty .desc{font-size:13px;margin-top:6px}
+.practice-item{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:14px;margin-bottom:10px}
+.practice-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.practice-name{font-size:16px;font-weight:700;color:#fff}
+.practice-code{font-size:12px;color:#64748b;margin-top:2px}
+.practice-delete{background:none;border:none;color:#475569;cursor:pointer;font-size:18px;padding:0;line-height:1}
+.practice-delete:active{color:#ef4444}
+.practice-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
+.practice-grid-item{background:#0f172a;border-radius:8px;padding:8px 6px;text-align:center}
+.practice-grid-label{font-size:10px;color:#64748b}
+.practice-grid-value{font-size:14px;font-weight:700;color:#e2e8f0;margin-top:2px}
+.practice-gain{text-align:center;font-size:14px;font-weight:600;margin-bottom:8px}
+.practice-tag{font-size:11px;background:#0f172a;color:#64748b;padding:2px 8px;border-radius:6px;margin-right:6px;margin-bottom:4px;display:inline-block}
+.practice-signal{padding:4px 12px;border-radius:8px;font-size:13px;font-weight:700;text-align:center}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:flex;align-items:flex-end}
+.modal{background:#1e293b;border-radius:16px 16px 0 0;padding:24px;width:100%}
+.modal-title{font-size:18px;font-weight:700;color:#fff;margin-bottom:16px}
+.modal-field{margin-bottom:12px}
+.modal-label{font-size:13px;color:#94a3b8;margin-bottom:6px;display:block}
+.modal-input{width:100%;padding:10px 12px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:14px;outline:none}
+.modal-input:focus{border-color:#60a5fa}
+.modal-input:disabled{color:#64748b;background:#162030}
+.modal-actions{display:flex;gap:10px;margin-top:16px}
+.modal-cancel{flex:1;padding:12px;background:#0f172a;border:1px solid #334155;border-radius:10px;color:#94a3b8;font-size:15px;cursor:pointer}
+.modal-confirm{flex:2;padding:12px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+.modal-cancel:active,.modal-confirm:active{opacity:.85}
+.footer{text-align:center;padding:12px;font-size:11px;color:#475569}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading{display:inline-block;width:14px;height:14px;border:2px solid #60a5fa;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:4px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📈 大数投资</h1>
+  <div class="sub">PE≤20 · PB≤2 · 52周位置</div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" id="tab-search" onclick="switchTab('search')">🔍 股票查询</button>
+  <button class="tab" id="tab-practice" onclick="switchTab('practice')">📋 实践表 <span id="practice-count"></span></button>
+</div>
+
+<div class="content" id="content"></div>
+
+<script>
+// ===== 状态 =====
+const state = {
+  tab: 'search',
+  query: '',
+  searchResults: [],
+  searching: false,
+  viewStack: [],
+  selectedStock: null,
+  loadingDetail: false,
+  practice: [],
+  livePrices: {},
+  showAddModal: false,
+  addForm: {},
+};
+
+function $ (s) { return document.querySelector(s); }
+function $$ (s) { return document.querySelectorAll(s); }
+
+function escHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) {
+  if (s == null) return '';
+  return String(s).replace(/'/g,'&#39;').replace(/"/g,'&quot;');
+}
+
+function updatePracticeCount() {
+  const el = $('#practice-count');
+  if (el) el.textContent = state.practice.length ? `(${state.practice.length})` : '';
+}
+
+function weekPosColor(pos) {
+  if (pos == null) return '#999';
+  if (pos < 30) return '#22c55e';
+  if (pos > 70) return '#ef4444';
+  return '#f59e0b';
+}
+
+function calcSignal(pos) {
+  if (pos == null) return { label: '持有', color: '#f59e0b' };
+  if (pos < 30) return { label: '买入', color: '#22c55e' };
+  if (pos > 70) return { label: '卖出', color: '#ef4444' };
+  return { label: '持有', color: '#f59e0b' };
+}
+
+// ===== 渲染入口 =====
+function render() {
+  $('tab-search').classList.toggle('active', state.tab === 'search');
+  $('tab-practice').classList.toggle('active', state.tab === 'practice');
+  if (state.tab === 'search') renderSearch();
+  else renderPractice();
+}
+
+function switchTab(tab) {
+  state.tab = tab;
+  if (tab === 'practice') {
+    loadPractice();
+    refreshLivePrices();
+  }
+  render();
+}
+
+// ===== 搜索页 =====
+function renderSearch() {
+  const c = $('#content');
+  if (state.viewStack.length === 0) {
+    c.innerHTML = `
+      <div class="search-box">
+        <input id="search-input" type="text" placeholder="输入股票代码或名称，如 600519、茅台" value="${escAttr(state.query)}" autocomplete="off" autofocus>
+        <span class="search-status" id="search-status">${state.searching ? '<span class="loading"></span>搜索中…' : ''}</span>
+      </div>
+      <div id="search-results">${state.searchResults.length ? renderSearchResults() : '<div style="text-align:center;padding:40px;color:#475569;font-size:14px">输入代码或名称搜索 · 支持模糊匹配</div>'}</div>
+    `;
+    const inp = $('#search-input');
+    inp.addEventListener('input', e => handleSearchInput(e.target.value));
+    inp.focus();
+  } else {
+    c.innerHTML = renderDetail();
+  }
+}
+
+function renderSearchResults() {
+  return `<div class="card" style="padding:0;overflow:hidden">${state.searchResults.map(s => `
+    <div class="stock-item" onclick="viewStock(${escAttr(JSON.stringify(s))})">
+      <div><div class="name">${escHtml(s.name)}</div><div class="code">${escHtml(s.code.replace(/^(sh|sz|bj)/i,''))}</div></div>
+      <div class="arrow">›</div>
+    </div>`).join('')}</div>`;
+}
+
+function renderDetail() {
+  const s = state.selectedStock;
+  if (!s) return '<div style="padding:40px;text-align:center;color:#64748b">加载中…</div>';
+  const peOk = s.pe != null && s.pe <= 20;
+  const pbOk = s.pb != null && s.pb <= 2;
+  const peVal = s.pe != null ? s.pe.toFixed(2) : '—';
+  const pbVal = s.pb != null ? s.pb.toFixed(2) : '—';
+  const signal = calcSignal(s.week52Pos);
+  const peClass = s.pe != null ? (peOk ? 'metric-ok' : 'metric-fail') : 'metric-neutral';
+  const pbClass = s.pb != null ? (pbOk ? 'metric-ok' : 'metric-fail') : 'metric-neutral';
+  const inPractice = state.practice.some(p => {
+    const pc = (p.code||'').replace(/^(sh|sz|bj)/i,'');
+    const sc = (s.code||'').replace(/^(sh|sz|bj)/i,'');
+    return pc === sc || p.code === s.code;
+  });
+
+  let signalHtml = '';
+  if (s.week52Pos != null) {
+    signalHtml = `<div class="signal" style="background:${signal.color}22;color:${signal.color};border-color:${signal.color}44">${signal.label === '买入' ? '🟢 '+s.week52Pos+'%（建议买入）' : signal.label === '卖出' ? '🔴 '+s.week52Pos+'%（建议卖出）' : '🟡 '+s.week52Pos+'%（持有）'}</div>`;
+  }
+
+  return `
+    <button class="back-btn" onclick="goBack()">← 返回列表</button>
+    <div class="card">
+      <div class="detail-header">
+        <div>
+          <div class="detail-name">${escHtml(s.name)}</div>
+          <div class="detail-code">${escHtml(s.code?.replace(/^(sh|sz|bj)/i,''))}</div>
+        </div>
+        <div>
+          <div class="detail-price">${s.price ? '¥'+s.price : '—'}</div>
+          ${s.pe != null ? `<div class="detail-meta">PE ${peVal} · PB ${pbVal}</div>` : ''}
+        </div>
+      </div>
+
+      ${state.loadingDetail ? '<div style="text-align:center;padding:20px;color:#60a5fa"><span class="loading"></span>加载指标数据…</div>' : `
+      <div class="metric-grid">
+        <div class="metric">
+          <div class="metric-label">市盈率 PE</div>
+          <div class="metric-value ${peClass}">${peVal}</div>
+          <div class="metric-note ${peClass}">${s.pe != null ? (peOk ? '✅ 符合' : '❌ 不符合') : '数据不足'}</div>
+          <div class="metric-note metric-neutral">PE ≤ 20</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">市净率 PB</div>
+          <div class="metric-value ${pbClass}">${pbVal}</div>
+          <div class="metric-note ${pbClass}">${s.pb != null ? (pbOk ? '✅ 符合' : '❌ 不符合') : '数据不足'}</div>
+          <div class="metric-note metric-neutral">PB ≤ 2</div>
+        </div>
+      </div>
+
+      ${s.week52Pos != null ? `
+      <div class="week52">
+        <div class="week52-header">
+          <span class="week52-title">52周价格位置</span>
+          <span class="week52-badge" style="background:${weekPosColor(s.week52Pos)}">${s.week52Pos}%</span>
+        </div>
+        ${s.high52 && s.low52 ? `<div class="week52-info">52周最高 ¥${s.high52} · 52周最低 ¥${s.low52}</div>` : ''}
+        <div class="week52-bar">
+          <div class="week52-fill" style="width:${s.week52Pos}%;background:${weekPosColor(s.week52Pos)}"></div>
+          <div class="week52-line" style="left:30%"></div>
+          <div class="week52-line" style="left:70%"></div>
+        </div>
+        <div class="week52-labels"><span>最低</span><span style="color:#22c55e">←买入30%</span><span>持有</span><span style="color:#ef4444">卖出70%→</span><span>最高</span></div>
+      </div>` : ''}
+
+      ${signalHtml}
+
+      <button class="add-btn" onclick="openAddModal()" ${inPractice?'style="background:#334155;color:#94a3b8" disabled':''}>${inPractice ? '✅ 已在实践表' : '➕ 加入实践表'}</button>
+      `}
+    </div>`;
+}
+
+// ===== 实践表页 =====
+function renderPractice() {
+  const c = $('#content');
+  if (state.practice.length === 0) {
+    c.innerHTML = `<div class="practice-empty"><div class="icon">📋</div><div class="title">实践表是空的</div><div class="desc">去「股票查询」里找股票加入吧</div></div>`;
+    return;
+  }
+  c.innerHTML = state.practice.map(item => {
+    const live = state.livePrices[item.code] || {};
+    const currentPrice = live.price || item.buyPrice || 0;
+    const gain = item.buyPrice && currentPrice ? (((currentPrice - item.buyPrice) / item.buyPrice) * 100).toFixed(2) : null;
+    const gainAmount = item.buyPrice && item.shares && currentPrice ? ((currentPrice - item.buyPrice) * item.shares).toFixed(0) : null;
+    const pos = live.week52Pos ?? item.week52PosAtBuy ?? null;
+    const signal = calcSignal(pos);
+    return `<div class="practice-item">
+      <div class="practice-header">
+        <div>
+          <div class="practice-name">${escHtml(item.name)}</div>
+          <div class="practice-code">${escHtml(item.code.replace(/^(sh|sz|bj)/i,''))}</div>
+        </div>
+        <button class="practice-delete" onclick="removeItem('${escAttr(item.code)}')">✕</button>
+      </div>
+      <div class="practice-grid">
+        <div class="practice-grid-item"><div class="practice-grid-label">买入价</div><div class="practice-grid-value">${item.buyPrice ? '¥'+item.buyPrice : '—'}</div></div>
+        <div class="practice-grid-item"><div class="practice-grid-label">数量</div><div class="practice-grid-value">${item.shares ? item.shares+'股' : '—'}</div></div>
+        <div class="practice-grid-item"><div class="practice-grid-label">当前价</div><div class="practice-grid-value">${currentPrice ? '¥'+currentPrice : '…'}</div></div>
+      </div>
+      ${gain != null ? `<div class="practice-gain" style="color:${parseFloat(gain)>=0?'#ef4444':'#22c55e'}">${parseFloat(gain)>=0?'+':''}${gain}% ${gainAmount != null ? '('+(parseFloat(gain)>=0?'+':'')+'¥'+gainAmount+')' : ''}</div>` : ''}
+      <div style="margin-bottom:8px">
+        <span class="practice-tag">PE ${item.peAtBuy!=null?item.peAtBuy.toFixed(2):'?'}→${live.pe!=null?live.pe.toFixed(2):'?'}</span>
+        <span class="practice-tag">PB ${item.pbAtBuy!=null?item.pbAtBuy.toFixed(2):'?'}→${live.pb!=null?live.pb.toFixed(2):'?'}</span>
+        <span class="practice-tag">52W ${item.week52PosAtBuy!=null?item.week52PosAtBuy+'%':'?'}→${live.week52Pos!=null?live.week52Pos+'%':'?'}</span>
+      </div>
+      <div class="practice-signal" style="background:${signal.color}22;color:${signal.color}">📊 ${signal.label} <span style="font-size:11px;font-weight:400">${pos != null ? pos+'%' : ''}</span></div>
+    </div>`;
+  }).join('') + `<div class="footer">每30秒自动刷新 · 买入&lt;30% · 持有30-70% · 卖出&gt;70%</div>`;
+}
+
+// ===== API 调用 =====
+let searchTimer = null;
+function handleSearchInput(val) {
+  state.query = val;
+  clearTimeout(searchTimer);
+  if (!val.trim()) { state.searchResults = []; render(); return; }
+  state.searching = true;
+  render();
+  searchTimer = setTimeout(async () => {
+    try {
+      const r = await fetch(`/api/search?q=${encodeURIComponent(val.trim())}`);
+      const d = await r.json();
+      state.searchResults = d.stocks || [];
+    } catch(e) { state.searchResults = []; }
+    state.searching = false;
+    render();
+  }, 300);
+}
+
+async function viewStock(stock) {
+  state.viewStack.push('detail');
+  state.selectedStock = stock;
+  state.loadingDetail = true;
+  render();
+  try {
+    const r = await fetch(`/api/stock/${encodeURIComponent(stock.code)}`);
+    const d = await r.json();
+    if (!d.error) {
+      state.selectedStock = d;
+      state.livePrices[d.code] = d;
+    }
+  } catch(e) {}
+  state.loadingDetail = false;
+  render();
+}
+
+function goBack() {
+  state.viewStack.pop();
+  state.selectedStock = null;
+  render();
+}
+
+async function loadPractice() {
+  try {
+    const r = await fetch('/api/practice');
+    state.practice = await r.json();
+    if (!Array.isArray(state.practice)) state.practice = [];
+  } catch(e) { state.practice = []; }
+  updatePracticeCount();
+}
+
+async function refreshLivePrices() {
+  for (const item of state.practice) {
+    try {
+      const r = await fetch(`/api/stock/${encodeURIComponent(item.code)}`);
+      const d = await r.json();
+      if (!d.error) state.livePrices[item.code] = d;
+    } catch(e) {}
+  }
+  render();
+}
+
+function openAddModal() {
+  const s = state.selectedStock;
+  if (!s) return;
+  state.addForm = {
+    code: s.code,
+    name: s.name,
+    buyPrice: s.price || '',
+    shares: '',
+  };
+  renderModal();
+}
+
+function closeModal() {
+  state.showAddModal = false;
+  const el = $('.modal-overlay');
+  if (el) el.remove();
+}
+
+function renderModal() {
+  const f = state.addForm;
+  const html = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-title">加入实践表</div>
+    <div class="modal-field"><label class="modal-label">股票代码</label><input class="modal-input" value="${escAttr(f.code||'')}" disabled></div>
+    <div class="modal-field"><label class="modal-label">股票名称</label><input class="modal-input" value="${escAttr(f.name||'')}" disabled></div>
+    <div class="modal-field"><label class="modal-label">买入价格（元）</label><input class="modal-input" type="number" step="0.01" placeholder="填实际买入价或计划买入价" value="${escAttr(f.buyPrice||'')}" id="modal-buyPrice"></div>
+    <div class="modal-field"><label class="modal-label">买入数量（股）</label><input class="modal-input" type="number" step="100" placeholder="填买入多少股（100的整数倍）" value="${escAttr(f.shares||'')}" id="modal-shares"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModal()">取消</button>
+      <button class="modal-confirm" onclick="submitAdd()">确认添加</button>
+    </div>
+  </div></div>`;
+  const existing = $('.modal-overlay');
+  if (existing) existing.remove();
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function submitAdd() {
+  const buyPrice = parseFloat($('#modal-buyPrice').value) || 0;
+  const shares = parseInt($('#modal-shares').value) || 0;
+  if (!buyPrice || !shares) { alert('请填写买入价和数量'); return; }
+  const s = state.selectedStock;
+  try {
+    await fetch('/api/practice/add', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ code: s.code, name: s.name, buyPrice, shares })
+    });
+  } catch(e) {}
+  closeModal();
+  await loadPractice();
+  render();
+}
+
+async function removeItem(code) {
+  try {
+    await fetch(`/api/practice/remove/${encodeURIComponent(code)}`, { method: 'DELETE' });
+  } catch(e) {}
+  await loadPractice();
+  if (state.tab === 'practice') refreshLivePrices();
+}
+
+// ===== 初始化 =====
+loadPractice().then(() => render());
+setInterval(() => {
+  if (state.tab === 'practice' && state.practice.length > 0) refreshLivePrices();
+}, 30000);
+</script>
+</body>
+</html>
