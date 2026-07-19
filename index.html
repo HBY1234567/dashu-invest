@@ -203,6 +203,22 @@ input,button{font-family:inherit}
 /* 行业分组标题 */
 .sec-title{font-size:14px;font-weight:700;color:#e2e8f0;padding:10px 4px 6px;border-bottom:1px solid #1e293b;margin-top:4px}
 .sec-title:first-child{margin-top:0}
+
+/* 密码保护层 */
+#pwd-overlay{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:100vh;background:#0f172a;z-index:99999;position:fixed;inset:0;padding:20px}
+#pwd-box{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:40px 32px;width:100%;max-width:380px;text-align:center}
+#pwd-box h2{color:#fff;font-size:22px;margin-bottom:8px}
+#pwd-box p{color:#64748b;font-size:13px;margin-bottom:28px}
+#pwd-input{padding:13px 16px;background:#0f172a;border:1px solid #334155;border-radius:10px;
+  color:#e2e8f0;font-size:16px;width:100%;text-align:center;outline:none;margin-bottom:14px}
+#pwd-input:focus{border-color:#60a5fa}
+#pwd-btn{padding:13px;background:#3b82f6;border:none;border-radius:10px;
+  color:#fff;font-size:16px;font-weight:600;cursor:pointer;width:100%}
+#pwd-btn:active{background:#2563eb}
+#pwd-msg{color:#f87171;font-size:13px;margin-top:12px;min-height:18px}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.shake{animation:shake .3s ease}
 </style>
 </head>
 <body>
@@ -1066,6 +1082,20 @@ setInterval(function(){
 setInterval(function(){if(state.tab==='search')fetchMarketIndices();},60000);
 setInterval(function(){if(state.tab==='portfolio'&&state.practice.length>0)refreshLivePrices();},30000);
 setInterval(function(){if(state.tab==='pick'&&!state.pickLoading&&Object.keys(state.pickLive).length>0)loadPickList();},120000);
+</script>
+
+<div id="pwd-overlay">
+  <div id="pwd-box">
+    <h2>🔒 访问验证</h2>
+    <p>请输入访问密码</p>
+    <input id="pwd-input" type="password" placeholder="请输入密码" onkeydown="if(event.key==='Enter')checkPwd()">
+    <button id="pwd-btn" onclick="checkPwd()">进入</button>
+    <div id="pwd-msg"></div>
+  </div>
+</div>
+<script>
+function checkPwd(){var i=document.getElementById('pwd-input'),m=document.getElementById('pwd-msg'),b=document.getElementById('pwd-box');if(i.value.trim()==='dashu2026'){sessionStorage.setItem('dashu_pwd','1');document.getElementById('pwd-overlay').style.display='none'}else{m.textContent='密码错误，请重试';b.classList.remove('shake');void b.offsetWidth;b.classList.add('shake')}}
+if(sessionStorage.getItem('dashu_pwd')==='1'){document.getElementById('pwd-overlay').style.display='none'}
 </script>
 </body>
 </html>
