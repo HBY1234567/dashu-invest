@@ -342,8 +342,10 @@ async function fetchStockDetail(code){
   }
   var roe=null;
   if(pe&&pb&&pe>0)roe=Math.round((pb/pe)*1000)/10;
+  var stockEntry=STOCKS.find(function(s){return s.code===code;});
+  var industry=stockEntry?stockEntry.industry:'';
   return{
-    code:code,name:f[1]||code,price:price,
+    code:code,name:f[1]||code,price:price,industry:industry,
     pe:(pe!==null&&pe>0)?Math.round(pe*100)/100:null,
     pb:(pb!==null&&pb>0)?Math.round(pb*100)/100:null,
     high52:high52,low52:low52,week52Pos:week52Pos,chg:chg,roe:roe,
@@ -399,17 +401,36 @@ function goHome(){
 function renderSearch(){
   var c=$('#content');
   if(state.viewStack.length===0){
-    c.innerHTML=
-      '<div class="search-wrap">'+
-        '<input id="search-input" type="text" placeholder="输入代码或名称，如 600519、茅台、平安" autocomplete="off" autofocus>'+
-        '<button class="search-btn" id="search-btn" onclick="doSearch()">查询</button>'+
-      '</div>'+
-      '<div class="search-suggestions" id="suggestions"></div>'+
-      renderIndustrySection()+
-      '<div class="empty-hint">🔍 输入股票代码或名称开始搜索</div>';
+    // 检查是否已有搜索结果或详情
+    var hasResults=state.searchResults&&state.searchResults.length>0;
+    var hasQuery=state.query&&state.query.trim();
+    var html='<div class="search-wrap">'+
+      '<input id="search-input" type="text" placeholder="输入代码或名称，如 600519、茅台、平安" autocomplete="off" autofocus value="'+escAttr(state.query||'')+'">'+
+      '<button class="search-btn" id="search-btn" onclick="doSearch()">查询</button>'+
+    '</div>'+
+    '<div class="search-suggestions" id="suggestions"></div>';
+    // 只在首页显示行业推荐（不重复）
+    if(!hasQuery&&!hasResults){
+      html+=renderIndustrySection()+'<div class="empty-hint">🔍 输入股票代码或名称开始搜索</div>';
+    }else if(hasResults){
+      // 显示搜索结果列表（不跳转）
+      html+='<div class="card-list">';
+      for(var i=0;i<state.searchResults.length;i++){
+        var s=state.searchResults[i];
+        html+='<div class="stock-item" onclick="viewStock({code:\''+escAttr(s.code)+'\',name:\''+escAttr(s.name)+'\'})">'+
+          '<div><div class="name">'+escHtml(s.name)+'</div><div class="code">'+escHtml((s.code||'').replace(/^(sh|sz|bj)/i,''))+' · '+escHtml(s.industry||'')+'</div></div>'+
+          '<div class="arrow">›</div></div>';
+      }
+      html+='</div>';
+      html+='<div style="margin-top:12px"><button class="back-btn" onclick="clearSearch()">← 清除搜索</button></div>';
+    }else if(hasQuery){
+      html+='<div class="empty-hint">未找到「'+escHtml(state.query)+'」，试试其他关键词</div>';
+      html+='<div style="margin-top:12px"><button class="back-btn" onclick="clearSearch()">← 返回</button></div>';
+    }
+    c.innerHTML=html;
     bindSearchInput();
     if(Object.keys(state.industryLive).length===0){
-      refreshIndustryRecs().then(function(){var sec=$('#industry-recs');if(sec)sec.outerHTML=renderIndustrySection();});
+      refreshIndustryRecs();
     }
   } else {
     c.innerHTML=renderDetail();
@@ -459,13 +480,15 @@ async function doSearch(){
   var sug=$('#suggestions');if(sug)sug.classList.remove('show');
   if(/^\d{6}$/.test(val)){
     var c=val;
-    if(/^(688|300|200|900|8)/.test(c)){renderNotice('⚠️ '+escHtml(c)+'（科创板/创业板/北交所/B股）不在大数投资选股范围，仅沪深主板A股');return;}
-    if(/^(51|15|56|58|59)/.test(c)){renderNotice('⚠️ '+escHtml(c)+'（ETF基金）不在大数投资选股范围');return;}
-    var secid=c.startsWith('6')?'sh'+code:'sz'+c;
-    var c2=$('#content');if(c2)c2.innerHTML='<div class="empty-hint"><span class="loading"></span> 正在查询 '+escHtml(c)+' …</div>';
+    if(/^(688|300|200|900|8)/.test(c)){state.searchResults=[];render();return;}
+    if(/^(51|15|56|58|59)/.test(c)){state.searchResults=[];render();return;}
+    var secid=c.startsWith('6')?'sh'+c:'sz'+c;
+    // 直接查询并显示详情（在当前页下方）
     var r=await fetchStockDetail(secid);
-    if(r.error){state.searchResults=[];renderSearchResults();return;}
-    viewStock({code:secid,name:r.name||c});
+    if(r.error){state.searchResults=[];render();return;}
+    // 将查询结果作为单条结果展示，点击后查看详情
+    state.searchResults=[{code:secid,name:r.name||c,industry:r.industry||''}];
+    render();
     return;
   }
   var results=fuzzyMatch(val);
@@ -474,29 +497,10 @@ async function doSearch(){
     if(sm.length)results=sm;
   }
   state.searchResults=results;
-  renderSearchResults();
+  render();
 }
-function renderSearchResults(){
-  var c=$('#content');
-  var html='<div class="search-wrap">'+
-    '<input id="search-input" type="text" placeholder="输入代码或名称" value="'+escAttr(state.query)+'" autocomplete="off">'+
-    '<button class="search-btn" onclick="doSearch()">查询</button></div>';
-  if(state.searchResults.length===0){
-    html+='<div class="empty-hint">未找到「'+escHtml(state.query)+'」，试试其他关键词</div>';
-  } else {
-    html+='<div class="card-list">';
-    for(var i=0;i<state.searchResults.length;i++){
-      var s=state.searchResults[i];
-      html+='<div class="stock-item" onclick="viewStock({code:\''+escAttr(s.code)+'\',name:\''+escAttr(s.name)+'\'})">'+
-        '<div><div class="name">'+escHtml(s.name)+'</div><div class="code">'+escHtml((s.code||'').replace(/^(sh|sz|bj)/i,''))+' · '+escHtml(s.industry||'')+'</div></div>'+
-        '<div class="arrow">›</div></div>';
-    }
-    html+='</div>';
-  }
-  html+='<div style="margin-top:12px"><button class="back-btn" onclick="clearSearch()">← 返回行业推荐</button></div>';
-  c.innerHTML=html;bindSearchInput();
-}
-function clearSearch(){state.query='';state.searchResults=[];state.viewStack=[];render();}
+// renderSearchResults 已合并到 renderSearch 中
+function clearSearch(){state.query='';state.searchResults=[];state.viewStack=[];state.selectedStock=null;render();var inp=$('#search-input');if(inp)inp.value='';}
 function selectSuggestion(code,name){var sug=$('#suggestions');if(sug)sug.classList.remove('show');viewStock({code:code,name:name});}
 function renderNotice(msg){
   var c=$('#content');if(!c)return;
@@ -554,7 +558,7 @@ function renderDetail(){
   html+='<div class="metric-grid">'+
     '<div class="metric"><div class="metric-label">市盈率 PE</div><div class="metric-value '+peCls+'">'+peVal+'</div><div class="metric-note '+(s.pe!=null?(peOk?'metric-ok':'metric-fail'):'metric-neutral')+'">'+(s.pe!=null?(peOk?'✅ 低估':'❌ 偏高'):'—')+'</div></div>'+
     '<div class="metric"><div class="metric-label">市净率 PB</div><div class="metric-value '+pbCls+'">'+pbVal+'</div><div class="metric-note '+(s.pb!=null?(pbOk?'metric-ok':'metric-fail'):'metric-neutral')+'">'+(s.pb!=null?(pbOk?'✅ 低估':'❌ 偏高'):'—')+'</div></div>'+
-    '<div class="metric"><div class="metric-label">ROE 估算</div><div class="metric-value metric-neutral">'+roeVal+'</div><div class="metric-note metric-neutral">PB÷PE</div></div>'+
+    (function(){var roeNote='';var roeCls='metric-neutral';if(s.roe!=null){if(s.roe>=15){roeNote='✅ 优秀（≥15%）';roeCls='metric-ok';}else if(s.roe>=10){roeNote='🟡 良好（10-15%）';roeCls='metric-neutral';}else if(s.roe>=5){roeNote='⚠️ 一般（5-10%）';roeCls='metric-fail';}else{roeNote='❌ 偏低（<5%）';roeCls='metric-fail';}}return '<div class="metric"><div class="metric-label">ROE 估算</div><div class="metric-value metric-neutral">'+roeVal+'</div><div class="metric-note '+roeCls+'">'+(roeNote||'PB÷PE')+'</div></div>';})()+
     '<div class="metric"><div class="metric-label">52周位置</div><div class="metric-value" style="color:'+weekPosColor(s.week52Pos)+'">'+(s.week52Pos!=null?s.week52Pos+'%':'—')+'</div><div class="metric-note metric-neutral">'+(s.chg!=null?(s.chg>=0?'今日+':'今日')+s.chg+'%':'—')+'</div></div>'+
   '</div>';
   if(s.week52Pos!=null||(s.high52&&s.low52)){
@@ -922,24 +926,11 @@ try{
     setLoadBar(100,'加载行情数据…');
     setTimeout(function(){var wrap=$('#initial-loader');if(wrap)wrap.style.display='none';},300);
   },200);
-  refreshIndustryRecs().then(function(){
-    var sec=$('#industry-recs');
-    if(sec&&state.tab==='search'&&state.viewStack.length===0){
-      sec.outerHTML=renderIndustrySection();
-      var inp2=$('#search-input');
-      if(inp2&&!inp2._bound){inp2._bound=true;inp2.addEventListener('input',function(e){state.query=e.target.value;handleSearchInput(state.query);});inp2.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doSearch();}});}
-    }
-  }).catch(function(e){console.warn('行业推荐加载失败',e);});
+  // 行业推荐在 renderSearch() 中自动加载，无需重复
+
 }catch(err){console.error('Init error:',err);showInitError(err.message||err);throw err;}
 // 行情刷新
 setInterval(function(){
-  if(state.tab==='search'&&state.viewStack.length===0){
-    refreshIndustryRecs().then(function(){
-      if(state.tab==='search'&&state.viewStack.length===0){
-        var sec=$('#industry-recs');if(sec)sec.outerHTML=renderIndustrySection();
-      }
-    });
-  }
   if(state.tab==='market')fetchMarketTemp();
 },60000);
 setInterval(function(){if(state.tab==='portfolio'&&state.practice.length>0)refreshLivePrices();},30000);
