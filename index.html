@@ -114,6 +114,9 @@ input,button{font-family:inherit}
 .practice-gain{text-align:center;font-size:14px;font-weight:600;margin-bottom:8px}
 .practice-tag{font-size:11px;background:#0f172a;color:#64748b;padding:2px 8px;border-radius:6px;margin-right:6px;margin-bottom:4px;display:inline-block}
 .practice-signal{padding:6px 12px;border-radius:8px;font-size:13px;font-weight:700;text-align:center;margin-top:8px}
+.practice-advice{padding:8px 10px;border-radius:8px;margin-top:8px}
+.advice-head{font-size:13px;font-weight:700;color:#e2e8f0}
+.advice-detail{font-size:11px;color:#94a3b8;margin-top:3px;line-height:1.4}
 /* 市场温度 */
 .thermo-card{background:linear-gradient(135deg,#1e293b,#0f172a);border:1px solid #334155;border-radius:14px;padding:20px;margin-bottom:16px;text-align:center}
 .thermo-value{font-size:40px;font-weight:800;margin:6px 0}
@@ -318,6 +321,15 @@ function calcSignal(d){
   }
   if(pos>70)return{label:'建议卖出',cls:'sell',icon:'🔴',sub:'52周位置'+pos+'% · 价格高位'};
   return{label:'持有',cls:'hold',icon:'🟡',sub:'52周位置'+pos+'% · 合理区间'};
+}
+// 大数投资买卖建议：以「相对买入价的浮盈亏」为判据
+// 涨50%卖一半(锁定本金) · 涨100%清仓(落袋为安) · 其余持有不动
+function calcDashuAdvice(gain){
+  if(gain==null)return{text:'—',cls:'hold',detail:'未记录买入价，无法计算'};
+  if(gain>=100)return{text:'🔴 清仓',cls:'sell',detail:'涨超100%，按大数投资翻倍清仓、落袋为安'};
+  if(gain>=50)return{text:'🟠 卖一半',cls:'warn',detail:'涨超50%，卖出一半锁定本金，余下继续持有'};
+  if(gain<0)return{text:'🟢 持有不动',cls:'hold',detail:'浮亏中，大数投资不止损、不补仓，等估值修复或翻倍触发'};
+  return{text:'🟢 持有不动',cls:'hold',detail:'浮盈未达50%，持有等待卖点，不提前下车'};
 }
 // 腾讯行情 API（原生CORS，浏览器直连）
 async function fetchStockDetail(code){
@@ -679,7 +691,8 @@ function renderPortfolio(){
     html+='<div><span class="practice-tag">PE '+(item.peAtBuy!=null?item.peAtBuy.toFixed(2):'?')+'→'+(live.pe!=null?live.pe.toFixed(2):'?')+'</span>'+
       '<span class="practice-tag">PB '+(item.pbAtBuy!=null?item.pbAtBuy.toFixed(2):'?')+'→'+(live.pb!=null?live.pb.toFixed(2):'?')+'</span>'+
       (item.divYld?'<span class="practice-tag">股息 '+item.divYld+'%</span>':'')+'</div>'+
-      '<div class="practice-signal" style="background:'+sig.cls+';color:'+(sig.cls==='buy'?'#22c55e':sig.cls==='sell'?'#ef4444':'#f59e0b')+'">'+sig.icon+' '+sig.label+' '+(pos!=null?'52周'+pos+'%':'')+'</div></div>';
+      '<div class="practice-signal" style="background:'+sig.cls+';color:'+(sig.cls==='buy'?'#22c55e':sig.cls==='sell'?'#ef4444':'#f59e0b')+'">'+sig.icon+' '+sig.label+' '+(pos!=null?'52周'+pos+'%':'')+'</div>'+
+      (function(){var adv=calcDashuAdvice(gain!=null?parseFloat(gain):null);return '<div class="practice-advice" style="background:'+(adv.cls==='sell'?'rgba(239,68,68,.15)':adv.cls==='warn'?'rgba(245,158,11,.15)':'rgba(34,197,94,.12)')+';border-left:3px solid '+(adv.cls==='sell'?'#ef4444':adv.cls==='warn'?'#f59e0b':'#22c55e')+'"><div class="advice-head">📘 大数投资建议　'+(gain!=null?(parseFloat(gain)>=0?'+':'')+gain+'%　':'')+adv.text+'</div><div class="advice-detail">'+adv.detail+'</div></div>';})()+'</div>';
   });
   c.innerHTML=html+'<div class="footer">每30秒自动刷新 · 🟢买入&lt;30% · 🟡持有30-70% · 🔴卖出&gt;70%</div>';
 }
