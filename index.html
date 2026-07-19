@@ -418,7 +418,12 @@ const HOME_INDICES=[
 ];
 // 美股指数数据获取
 async function fetchUSIndex(code){
-  var secid='usr.'+code.toLowerCase();
+  // 腾讯行情API美股指数secid映射
+  var usMap={
+    'DJI':'usDJI',  // 道琼斯
+    'SPX':'usINX'   // 标普500
+  };
+  var secid=usMap[code]||('us'+code);
   try{
     var resp=await fetch('https://qt.gtimg.cn/q='+secid,{headers:{'Referer':'https://gu.qq.com'}});
     if(!resp.ok)return{error:'美股数据请求失败'};
