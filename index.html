@@ -145,10 +145,11 @@ input,button{font-family:inherit}
 .empty-hint{text-align:center;padding:40px 20px;color:#475569;font-size:14px}
 /* 首页指数卡 + 组合摘要 */
 .home-index{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
-.home-idx-card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:12px 14px}
-.home-idx-name{font-size:13px;color:#94a3b8}
-.home-idx-price{font-size:20px;font-weight:700;color:#fff;margin-top:2px}
-.home-idx-chg{font-size:12px;font-weight:600;margin-top:2px}
+.home-idx-card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:10px 12px;min-height:78px}
+.home-idx-name{font-size:12px;color:#94a3b8}
+.home-idx-price{font-size:18px;font-weight:700;color:#fff;margin-top:2px}
+.home-idx-chg{font-size:11px;font-weight:600;margin-top:2px}
+.home-idx-us{font-size:9px;color:#64748b;margin-top:1px}
 .home-portfolio{background:linear-gradient(135deg,#1e293b,#0f172a);border:1px solid #334155;border-radius:12px;padding:14px;margin-bottom:14px}
 .home-pf-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0}
 .home-pf-row .l{font-size:13px;color:#94a3b8}
@@ -408,11 +409,39 @@ async function refreshIndustryRecs(){
   });
   await Promise.all(promises);
 }
-// 大盘指数（首页展示）：上证指数 sh000001、深证成指 sz399001
-const HOME_INDICES=[{code:'sh000001',name:'上证指数'},{code:'sz399001',name:'深证成指'}];
+// 大盘指数（首页展示）：上证指数、深证成指、道琼斯、标普500
+const HOME_INDICES=[
+  {code:'sh000001',name:'上证指数'},
+  {code:'sz399001',name:'深证成指'},
+  {code:'DJI',name:'道琼斯',isUS:true},
+  {code:'SPX',name:'标普500',isUS:true}
+];
+// 美股指数数据获取
+async function fetchUSIndex(code){
+  var secid='usr.'+code.toLowerCase();
+  try{
+    var resp=await fetch('https://qt.gtimg.cn/q='+secid,{headers:{'Referer':'https://gu.qq.com'}});
+    if(!resp.ok)return{error:'美股数据请求失败'};
+    var buf=await resp.arrayBuffer();
+    var bodyStr=GBK_DECODER.decode(buf);
+    var match=bodyStr.match(/="([^"]+)"/);
+    if(!match)return{error:'美股指数未找到'};
+    var f=match[1].split('~');
+    if(!f[3])return{error:'美股数据解析失败'};
+    var price=parseFloat(f[3])||0;
+    var chg=parseFloat(f[32])||null;
+    var name=f[1]||code;
+    return{code:code,name:name,price:price,chg:chg};
+  }catch(e){
+    return{error:'美股数据获取异常'};
+  }
+}
 async function fetchMarketIndices(){
   try{
     var proms=HOME_INDICES.map(function(r){
+      if(r.isUS){
+        return fetchUSIndex(r.code).then(function(d){if(!d.error)state.indices[r.code]=d;}).catch(function(){});
+      }
       return fetchStockDetail(r.code).then(function(d){if(!d.error)state.indices[r.code]=d;}).catch(function(){});
     });
     await Promise.all(proms);
@@ -429,9 +458,10 @@ function renderHomeTop(){
     var chg=d&&d.chg!=null?d.chg:null;
     var chgStr=chg!=null?(chg>=0?'+':'')+chg+'%':'—';
     var col=chg!=null?chgColor(chg):'#94a3b8';
+    var usLabel=r.isUS?'<div class="home-idx-us">美股上交易日</div>':'';
     html+='<div class="home-idx-card"><div class="home-idx-name">'+escHtml(r.name)+'</div>'+
       '<div class="home-idx-price">'+price+'</div>'+
-      '<div class="home-idx-chg" style="color:'+col+'">'+chgStr+'</div></div>';
+      '<div class="home-idx-chg" style="color:'+col+'">'+chgStr+'</div>'+usLabel+'</div>';
   });
   html+='</div>';
   // 组合摘要（有持仓时显示）
