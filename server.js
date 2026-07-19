@@ -4,7 +4,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { TextDecoder } = require('util');
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const MIME = {'.html':'text/html; charset=utf-8','.js':'application/javascript','.css':'text/css','.json':'application/json'};
 const GBK_DECODER = new TextDecoder('gbk');
 
@@ -282,4 +282,4 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => console.log(`大数投资已启动: http://localhost:${PORT}`));
+server.listen(PORT, '0.0.0.0', () => console.log(`大数投资已启动: http://localhost:${PORT}`));

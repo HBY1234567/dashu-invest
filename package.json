@@ -2,14 +2,12 @@
   "name": "dashu-invest",
   "version": "1.0.0",
   "private": true,
+  "description": "大数投资 - 股票查询与实践记录",
+  "main": "server.js",
   "scripts": {
-    "dev": "next dev --port 3000",
-    "build": "next build",
-    "start": "next start"
+    "start": "node server.js"
   },
-  "dependencies": {
-    "next": "14.2.5",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+  "engines": {
+    "node": ">=18"
   }
 }
