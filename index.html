@@ -359,7 +359,7 @@ async function refreshIndustryRecs(){
   });
   await Promise.all(promises);
 }
-function loadPractice(){try{return JSON.parse(localStorage.getItem('dashu-practice')||'[]');}catch(e){return[];}}
+function loadPractice(){try{var list=JSON.parse(localStorage.getItem('dashu-practice')||'[]');list.forEach(function(p){if(!p.industry||p.industry==='其他'){var e=STOCKS.find(function(s){return s.code===p.code;});if(e)p.industry=e.industry;}});return list;}catch(e){return[];}}
 function savePractice(list){localStorage.setItem('dashu-practice',JSON.stringify(list));}
 function fuzzyMatch(q){
   var ql=q.toLowerCase().trim();if(!ql)return[];
