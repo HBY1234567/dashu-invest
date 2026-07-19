@@ -125,6 +125,16 @@ input,button{font-family:inherit}
 .empty-hint{text-align:center;padding:40px 20px;color:#475569;font-size:14px}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading{display:inline-block;width:14px;height:14px;border:2px solid #60a5fa;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:4px}
+
+/* 加载进度条 */
+.loadbar-wrap{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:14px 16px;margin-bottom:16px}
+.loadbar-text{font-size:13px;color:#94a3b8;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.loadbar-track{background:#0f172a;border-radius:6px;height:8px;overflow:hidden;position:relative}
+.loadbar-fill{background:linear-gradient(90deg,#3b82f6,#60a5fa);height:100%;width:0%;transition:width .3s;border-radius:6px}
+.loadbar-fill.indeterminate{width:30%!important;animation:indet 1.4s ease-in-out infinite}
+@keyframes indeterminate{0%{left:-30%}100%{left:100%}}
+.skeleton-row{height:48px;background:linear-gradient(90deg,#1e293b 0%,#263348 50%,#1e293b 100%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:10px;margin-bottom:8px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 </style>
 </head>
 <body>
@@ -139,7 +149,37 @@ input,button{font-family:inherit}
   <button class="tab" id="tab-practice" onclick="switchTab('practice')">📋 实践表 <span id="practice-count"></span></button>
 </div>
 
-<div class="content" id="content"></div>
+<div class="content" id="content">
+  <!-- 初始加载状态：JS 接管前用户能看到的内容 -->
+  <div class="loadbar-wrap" id="initial-loader">
+    <div class="loadbar-text">
+      <span>📡 正在加载页面</span>
+      <span id="loadbar-pct">0%</span>
+    </div>
+    <div class="loadbar-track">
+      <div class="loadbar-fill indeterminate" id="loadbar-fill"></div>
+    </div>
+  </div>
+  <div class="search-wrap">
+    <input id="search-input" type="text" placeholder="输入代码或名称，如 600519、茅台" autocomplete="off">
+    <button class="search-btn" id="search-btn" onclick="doSearch()">查询</button>
+  </div>
+  <div class="search-suggestions" id="suggestions"></div>
+  <div class="industry-section">
+    <div class="industry-title">📊 行业推荐（按大数投资理论）</div>
+    <div class="industry-stocks" id="industry-recs">
+      <div class="ind-card" style="cursor:default"><div class="ind-name">加载中…</div><div class="ind-code">请稍候</div><div class="ind-price" style="color:#64748b">—</div><div class="ind-signal" style="background:#334155;color:#94a3b8;font-size:10px">数据加载中</div></div>
+    </div>
+  </div>
+  <div class="empty-hint">🔍 输入股票代码或名称开始搜索</div>
+</div>
+
+<noscript>
+<div style="padding:24px;text-align:center;color:#f59e0b">
+  <h2>⚠️ 请开启 JavaScript</h2>
+  <p style="margin-top:12px">大数投资需要 JavaScript 才能查询股票行情。请在浏览器设置中启用 JavaScript 后刷新页面。</p>
+</div>
+</noscript>
 
 <script>
 // ============================================================
@@ -335,6 +375,7 @@ function renderSearch(){
   if(state.viewStack.length===0){
     // 默认页：搜索框 + 行业推荐
     c.innerHTML=
+      '<div class="loadbar-wrap" id="initial-loader" style="display:none"></div>'+
       '<div class="search-wrap">'+
         '<input id="search-input" type="text" placeholder="输入代码或名称，如 600519、茅台、平安" autocomplete="off" autofocus>'+
         '<button class="search-btn" id="search-btn" onclick="doSearch()">查询</button>'+
@@ -342,9 +383,7 @@ function renderSearch(){
       '<div class="search-suggestions" id="suggestions"></div>'+
       renderIndustrySection()+
       '<div class="empty-hint">🔍 输入股票代码或名称开始搜索</div>';
-    var inp=$('#search-input');
-    inp.addEventListener('input',function(e){state.query=e.target.value;handleSearchInput(state.query);});
-    inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doSearch();}});
+    bindSearchInput();
     // 初始加载行业推荐数据
     if(Object.keys(state.industryLive).length===0){
       refreshIndustryRecs().then(function(){
@@ -356,6 +395,15 @@ function renderSearch(){
     // 详情页
     c.innerHTML=renderDetail();
   }
+}
+
+// 绑定搜索输入事件（避免重复绑定）
+function bindSearchInput(){
+  var inp=$('#search-input');
+  if(!inp||inp._bound)return;
+  inp._bound=true;
+  inp.addEventListener('input',function(e){state.query=e.target.value;handleSearchInput(state.query);});
+  inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doSearch();}});
 }
 
 function renderIndustrySection(){
@@ -424,9 +472,7 @@ function renderSearchResults(){
   }
   html+='<div style="margin-top:12px"><button class="back-btn" onclick="clearSearch()">← 返回行业推荐</button></div>';
   c.innerHTML=html;
-  var inp=$('#search-input');
-  inp.addEventListener('input',function(e){state.query=e.target.value;handleSearchInput(state.query);});
-  inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doSearch();}});
+  bindSearchInput();
 }
 
 function clearSearch(){
@@ -623,9 +669,63 @@ async function removeItem(code){
 // ============================================================
 // Init
 // ============================================================
-state.practice=loadPractice();
-updatePracticeCount();
-render();
+
+// 进度条工具
+function setLoadBar(pct,text){
+  var fill=$('#loadbar-fill');
+  var pctEl=$('#loadbar-pct');
+  var wrap=$('#initial-loader');
+  if(fill){
+    fill.classList.remove('indeterminate');
+    fill.style.width=pct+'%';
+  }
+  if(pctEl)pctEl.textContent=text||(pct+'%');
+  if(wrap&&pct>=100)setTimeout(function(){wrap.style.display='none';},400);
+}
+function showInitError(err){
+  var wrap=$('#initial-loader');
+  if(!wrap)return;
+  wrap.innerHTML='<div style="color:#ef4444;font-size:13px;line-height:1.5"><b>⚠️ 初始化失败</b><br><span style="color:#94a3b8">'+String(err).replace(/</g,'&lt;')+'</span><br><br><button class="search-btn" onclick="location.reload()">🔄 重新加载</button></div>';
+}
+
+try{
+  setLoadBar(10,'加载股池…');
+  state.practice=loadPractice();
+  setLoadBar(30,'加载股池完成');
+  updatePracticeCount();
+  setLoadBar(50,'渲染界面…');
+  render();
+  setLoadBar(70,'界面已就绪');
+  // 隐藏初始加载条，保留行业推荐卡片（用真实数据替换）
+  setTimeout(function(){
+    setLoadBar(100,'加载行情数据…');
+    setTimeout(function(){
+      var wrap=$('#initial-loader');
+      if(wrap)wrap.style.display='none';
+    },300);
+  },200);
+  // 立即刷新行业推荐数据
+  refreshIndustryRecs().then(function(){
+    var sec=$('#industry-recs');
+    if(sec&&state.tab==='search'&&state.viewStack.length===0){
+      sec.outerHTML=renderIndustrySection();
+      // 重新绑定事件
+      var inp2=$('#search-input');
+      if(inp2&&!inp2._bound){
+        inp2._bound=true;
+        inp2.addEventListener('input',function(e){state.query=e.target.value;handleSearchInput(state.query);});
+        inp2.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doSearch();}});
+      }
+    }
+  }).catch(function(e){
+    console.warn('行业推荐加载失败',e);
+  });
+}catch(err){
+  console.error('Init error:',err);
+  showInitError(err.message||err);
+  throw err;
+}
+
 // 定时刷新行业推荐数据
 setInterval(function(){
   if(state.tab==='search'&&state.viewStack.length===0){
