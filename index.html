@@ -11,9 +11,6 @@ input,button{font-family:inherit}
 .header{background:linear-gradient(135deg,#1e3a5f 0%,#0f172a 100%);padding:18px 16px 14px;border-bottom:1px solid #1e293b}
 .header h1{font-size:21px;font-weight:700;color:#fff}
 .header .sub{font-size:12px;color:#64748b;margin-top:4px}
-.topnav{display:flex;border-bottom:1px solid #1e293b;background:#1e293b;position:sticky;top:0;z-index:10}
-.topnav button{flex:1;padding:13px 0;text-align:center;font-size:13px;color:#64748b;cursor:pointer;border:none;background:none;border-bottom:2px solid transparent}
-.topnav button.active{color:#60a5fa;border-bottom-color:#60a5fa;font-weight:600}
 .content{padding:16px}
 /* 搜索框 */
 .search-wrap{display:flex;gap:8px;margin-bottom:16px}
@@ -191,12 +188,6 @@ input,button{font-family:inherit}
   <h1>📈 大数投资</h1>
   <div class="sub">双低估值 · 组合分散 · 市场温度计</div>
 </div>
-<div class="topnav">
-  <button id="tab-search" class="active" onclick="switchTab('search')">🔍 股票查询</button>
-  <button id="tab-portfolio" onclick="switchTab('portfolio')">📊 组合分析</button>
-  <button id="tab-market" onclick="switchTab('market')">🌡 市场温度</button>
-  <button id="tab-pick" onclick="switchTab('pick')">🌟 优选清单</button>
-</div>
 <div class="content" id="content">
   <div class="loadbar-wrap" id="initial-loader">
     <div class="loadbar-text"><span>📡 正在加载页面</span><span id="loadbar-pct">0%</span></div>
@@ -217,10 +208,10 @@ input,button{font-family:inherit}
 </div>
 <div class="bottomnav">
   <button class="home-btn" onclick="goHome()">🏠<span>返回主页</span></button>
-  <button onclick="switchTab('search')">🔍<span>查询</span></button>
-  <button onclick="switchTab('portfolio')">📊<span>组合</span></button>
-  <button onclick="switchTab('market')">🌡<span>温度</span></button>
-  <button onclick="switchTab('pick')">🌟<span>优选</span></button>
+  <button id="nav-search" onclick="switchTab('search')">🔍<span>查询</span></button>
+  <button id="nav-portfolio" onclick="switchTab('portfolio')">📊<span>组合</span></button>
+  <button id="nav-market" onclick="switchTab('market')">🌡<span>温度</span></button>
+  <button id="nav-pick" onclick="switchTab('pick')">🌟<span>优选</span></button>
 </div>
 <noscript>
 <div style="padding:24px;text-align:center;color:#f59e0b"><h2>⚠️ 请开启 JavaScript</h2><p style="margin-top:12px">大数投资需要 JavaScript 才能查询股票行情。请在浏览器设置中启用 JavaScript 后刷新页面。</p></div>
@@ -251,8 +242,7 @@ const STOCKS = [
   {code:'sh600809',name:'山西汾酒',industry:'白酒'},
   {code:'sh600887',name:'伊利股份',industry:'食品'},{code:'sh600690',name:'海尔智家',industry:'家电'},
   {code:'sz000333',name:'美的集团',industry:'家电'},{code:'sz000651',name:'格力电器',industry:'家电'},
-  {code:'sh600276',name:'恒瑞医药',industry:'医药'},{code:'sz300760',name:'迈瑞医疗',industry:'医药'},
-  {code:'sh603259',name:'药明康德',industry:'医药'},{code:'sz300015',name:'爱尔眼科',industry:'医药'},
+  {code:'sh600276',name:'恒瑞医药',industry:'医药'},{code:'sh603259',name:'药明康德',industry:'医药'},
   {code:'sz000002',name:'万科A',industry:'房地产'},{code:'sh600048',name:'保利发展',industry:'房地产'},
   {code:'sh601668',name:'中国建筑',industry:'房地产'},
   {code:'sh600104',name:'上汽集团',industry:'汽车'},{code:'sz002594',name:'比亚迪',industry:'汽车'},
@@ -265,12 +255,9 @@ const STOCKS = [
   {code:'sh600274',name:'阳光电源',industry:'新能源'},
   {code:'sh601899',name:'紫金矿业',industry:'矿业'},{code:'sh603993',name:'洛阳钼业',industry:'矿业'},
   {code:'sh600309',name:'万华化学',industry:'化工'},
-  {code:'sh688981',name:'中芯国际',industry:'芯片'},{code:'sh603986',name:'兆易创新',industry:'芯片'},
+  {code:'sh603986',name:'兆易创新',industry:'芯片'},
   {code:'sz002475',name:'立讯精密',industry:'电子'},
   {code:'sh601111',name:'中国国航',industry:'航空'},
-  {code:'sh510300',name:'沪深300',industry:'ETF'},{code:'sh510500',name:'中证500',industry:'ETF'},
-  {code:'sh510050',name:'上证50',industry:'ETF'},{code:'sz159915',name:'创业板ETF',industry:'ETF'},
-  {code:'sh512880',name:'证券ETF',industry:'ETF'},{code:'sh518880',name:'黄金ETF',industry:'ETF'},
 ];
 // 行业推荐：覆盖全部 25 个行业（每行业 1 只代表性标的），ETF 单列
 const INDUSTRY_RECS = [
@@ -285,8 +272,8 @@ const INDUSTRY_RECS = [
   {code:'sh601668',name:'中国建筑',industry:'基建'},{code:'sh600941',name:'中国移动',industry:'通信'},
   {code:'sh600588',name:'用友网络',industry:'软件'},{code:'sh601012',name:'隆基绿能',industry:'新能源'},
   {code:'sh601899',name:'紫金矿业',industry:'矿业'},{code:'sh600309',name:'万华化学',industry:'化工'},
-  {code:'sh688981',name:'中芯国际',industry:'芯片'},{code:'sz002475',name:'立讯精密',industry:'电子'},
-  {code:'sh601111',name:'中国国航',industry:'航空'},{code:'sh510300',name:'沪深300',industry:'ETF'},
+  {code:'sh603986',name:'兆易创新',industry:'芯片'},{code:'sz002475',name:'立讯精密',industry:'电子'},
+  {code:'sh601111',name:'中国国航',industry:'航空'},
 ];
 const GBK_DECODER = new TextDecoder('gbk');
 const PE_THRESHOLD = 20;   // PE≤20 低估
@@ -301,6 +288,7 @@ const state = {
   industryLive:{}, market:{hs300:null},
   pickLive:{}, pickLoading:false,
   pickFilter:{peMax:20,pbMax:2,posMax:100,onlyDouble:true,industry:'ALL'}, pickSort:'score',
+  pickBuild:false, buildCapital:100000,
 };
 function $(s){return document.querySelector(s);}
 function escHtml(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -380,11 +368,8 @@ function fuzzyMatch(q){
 // 渲染
 // ============================================================
 function render(){
-  var ts=$('#tab-search'),tp=$('#tab-portfolio'),tm=$('#tab-market'),tk=$('#tab-pick');
-  if(ts)ts.classList.toggle('active',state.tab==='search');
-  if(tp)tp.classList.toggle('active',state.tab==='portfolio');
-  if(tm)tm.classList.toggle('active',state.tab==='market');
-  if(tk)tk.classList.toggle('active',state.tab==='pick');
+  var map={search:'#nav-search',portfolio:'#nav-portfolio',market:'#nav-market',pick:'#nav-pick'};
+  for(var _k in map){var _b=$(map[_k]);if(_b)_b.classList.toggle('active',state.tab===_k);}
   // 详情页优先（跨 tab 通用）
   if(state.viewStack.length>0){var c0=$('#content');if(c0)c0.innerHTML=renderDetail();return;}
   if(state.tab==='search')renderSearch();
@@ -444,10 +429,15 @@ function renderIndustrySection(){
   }
   return html+'</div></div>';
 }
-function handleSearchInput(val){
+async function handleSearchInput(val){
   var sug=$('#suggestions');
   if(!val.trim()){sug.classList.remove('show');state.searchResults=[];return;}
-  var results=fuzzyMatch(val.trim());state.searchResults=results;
+  var results=fuzzyMatch(val.trim());
+  if(results.length===0 && val.trim().length>=2){
+    var sm=await searchSmartbox(val.trim());
+    if(sm.length)results=sm;
+  }
+  state.searchResults=results;
   if(results.length===0){sug.classList.remove('show');return;}
   var html='';
   for(var i=0;i<results.length;i++){
@@ -458,10 +448,27 @@ function handleSearchInput(val){
   }
   sug.innerHTML=html;sug.classList.add('show');
 }
-function doSearch(){
+async function doSearch(){
   var val=$('#search-input').value.trim();if(!val)return;
-  state.query=val;state.searchResults=fuzzyMatch(val);
+  state.query=val;
   var sug=$('#suggestions');if(sug)sug.classList.remove('show');
+  if(/^\d{6}$/.test(val)){
+    var c=val;
+    if(/^(688|300|200|900|8)/.test(c)){renderNotice('⚠️ '+escHtml(c)+'（科创板/创业板/北交所/B股）不在大数投资选股范围，仅沪深主板A股');return;}
+    if(/^(51|15|56|58|59)/.test(c)){renderNotice('⚠️ '+escHtml(c)+'（ETF基金）不在大数投资选股范围');return;}
+    var secid=c.startsWith('6')?'sh'+c:'sz'+c;
+    var c2=$('#content');if(c2)c2.innerHTML='<div class="empty-hint"><span class="loading"></span> 正在查询 '+escHtml(c)+' …</div>';
+    var r=await fetchStockDetail(secid);
+    if(r.error){state.searchResults=[];renderSearchResults();return;}
+    viewStock({code:secid,name:r.name||c});
+    return;
+  }
+  var results=fuzzyMatch(val);
+  if(results.length===0 && val.length>=2){
+    var sm=await searchSmartbox(val);
+    if(sm.length)results=sm;
+  }
+  state.searchResults=results;
   renderSearchResults();
 }
 function renderSearchResults(){
@@ -486,6 +493,34 @@ function renderSearchResults(){
 }
 function clearSearch(){state.query='';state.searchResults=[];state.viewStack=[];render();}
 function selectSuggestion(code,name){var sug=$('#suggestions');if(sug)sug.classList.remove('show');viewStock({code:code,name:name});}
+function renderNotice(msg){
+  var c=$('#content');if(!c)return;
+  var html='<div class="search-wrap"><input id="search-input" type="text" placeholder="输入代码或名称，如 600519、茅台" value="'+escAttr(state.query)+'" autocomplete="off"><button class="search-btn" onclick="doSearch()">查询</button></div>';
+  html+='<div class="empty-hint">'+msg+'</div>';
+  html+='<div style="margin-top:12px"><button class="back-btn" onclick="clearSearch()">← 返回行业推荐</button></div>';
+  c.innerHTML=html;bindSearchInput();
+}
+async function searchSmartbox(kw){
+  try{
+    var url='https://smartbox.gtimg.cn/s3/?t=all&q='+encodeURIComponent(kw)+'&fmt=json';
+    var resp=await fetch(url,{headers:{'Referer':'https://gu.qq.com'}});
+    if(!resp.ok)return [];
+    var txt=await resp.text();
+    var m=txt.match(/v_hint\s*=\s*"([^"]*)"/);
+    if(!m)return [];
+    var parts=m[1].split(',');
+    var out=[];
+    for(var i=1;i<parts.length;i++){
+      if(/^(sh|sz|bj)/.test(parts[i])){
+        var code=parts[i];var name=parts[i+1]||code;var c=code.replace(/^(sh|sz|bj)/,'');
+        if(/^(688|300|200|900|8)/.test(c)){i++;continue;}
+        if(/^(51|15|56|58|59)/.test(c)){i++;continue;}
+        out.push({code:code,name:name,industry:''});i++;
+      }
+    }
+    return out.slice(0,15);
+  }catch(e){return [];}
+}
 // ---- 详情 ----
 async function viewStock(stock){
   state.viewStack.push('detail');state.selectedStock=stock;state.loadingDetail=true;render();
@@ -678,6 +713,7 @@ async function loadPickList(){
 }
 function pickSet(key,val){state.pickFilter[key]=val;renderPick();}
 function pickSort(s){state.pickSort=s;renderPick();}
+function toggleBuild(){state.pickBuild=!state.pickBuild;renderPick();}
 function renderPick(){
   var c=$('#content');if(c==null)return;
   if(state.pickLoading && Object.keys(state.pickLive).length===0){
@@ -729,8 +765,21 @@ function renderPick(){
     '<button class="sort-btn '+(state.pickSort==='pb'?'active':'')+'" onclick="pickSort(\'pb\')">📉PB</button>'+
     '<button class="sort-btn '+(state.pickSort==='pos'?'active':'')+'" onclick="pickSort(\'pos\')">📉52周位置</button>'+
     '<button class="sort-btn" onclick="loadPickList()" style="margin-left:auto">🔄刷新</button>'+
+    '<button class="sort-btn '+(state.pickBuild?'active':'')+'" onclick="toggleBuild()">⚖️建仓建议</button>'+
   '</div>';
   html+='<div class="pick-summary"><span>符合条件 <b>'+rows.length+'</b> 只 / 共 '+total+' 只</span><span class="badge-ok">双低达标 '+dlCount+' 只</span></div>';
+  if(state.pickBuild && rows.length>0){
+    var cap=state.buildCapital||100000;
+    var n=rows.length;
+    var per=Math.max(100,Math.floor(cap/n/100)*100);
+    html+='<div class="pick-filters" style="border-color:#22c55e">'+
+      '<div class="pf-row"><div class="pf-field"><label>总资金（元）· 等权建仓建议</label><input id="build-cap" type="number" step="1000" value="'+cap+'" onchange="state.buildCapital=parseFloat(this.value)||100000;renderPick();"></div></div>'+
+      '<div style="font-size:13px;color:#94a3b8;margin-bottom:8px">共 <b style="color:#6ee7b7">'+n+'</b> 只双低标的，每只等权约 <b style="color:#6ee7b7">¥'+per.toLocaleString()+'</b>（按当前筛选结果）</div>';
+    for(var bi=0;bi<n;bi++){var bd=rows[bi];
+      html+='<div class="pick-card" style="cursor:default"><div class="pick-left"><div class="pick-name">'+escHtml(bd.name)+' <span style="font-size:11px;color:#64748b">'+escHtml((bd.code||'').replace(/^(sh|sz|bj)/i,''))+'</span></div><div class="pick-meta">建议买入约 ¥'+per.toLocaleString()+'</div></div></div>';
+    }
+    html+='</div>';
+  }
   if(rows.length===0){
     html+='<div class="empty-hint">没有符合当前筛选条件的股票，试试放宽 PE/PB 上限或关闭"仅看双低"。</div>';
   } else {
