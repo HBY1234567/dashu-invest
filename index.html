@@ -322,7 +322,7 @@ const STOCKS = [
   {code:'sz002582',name:'好想你',industry:'食品'},{code:'sh600020',name:'中原高速',industry:'高速'},
   {code:'sh600827',name:'百联股份',industry:'商业'},
 ];
-// 行业推荐：覆盖全部 25 个行业（每行业 1 只代表性标的），ETF 单列
+// 行业推荐：覆盖全部 25 个行业（每行业 3 只代表性标的），ETF 单列
 const INDUSTRY_RECS = [
   {code:'sh601318',name:'中国平安',industry:'保险'},{code:'sh600036',name:'招商银行',industry:'银行'},
   {code:'sh600030',name:'中信证券',industry:'证券'},{code:'sh601857',name:'中国石油',industry:'石油'},
@@ -974,6 +974,7 @@ function pickPerIndustry(rows,f){
     var stocks=byInd[ind];
     var peSorted=stocks.slice().sort(function(a,b){return (a.pe==null?1e9:a.pe)-(b.pe==null?1e9:b.pe);});
     var pbSorted=stocks.slice().sort(function(a,b){return (a.pb==null?1e9:a.pb)-(b.pb==null?1e9:b.pb);});
+    var posSorted=stocks.slice().sort(function(a,b){return (a.week52Pos==null?1e9:a.week52Pos)-(b.week52Pos==null?1e9:b.week52Pos);});
     var selected=[];
     var i;
     for(i=0;i<Math.min(1,peSorted.length);i++){
@@ -981,6 +982,15 @@ function pickPerIndustry(rows,f){
     }
     for(i=0;i<Math.min(1,pbSorted.length);i++){
       if(pbSorted[i].pb!=null&&pbSorted[i].pb>0&&selected.indexOf(pbSorted[i])<0)selected.push(pbSorted[i]);
+    }
+    for(i=0;i<Math.min(1,posSorted.length);i++){
+      if(posSorted[i].week52Pos!=null&&posSorted[i].week52Pos>=0&&selected.indexOf(posSorted[i])<0)selected.push(posSorted[i]);
+    }
+    // 不足 3 只时，用该行业剩余股票按 52周位置 补足（低位优先）
+    if(selected.length<3){
+      for(i=0;i<posSorted.length&&selected.length<3;i++){
+        if(selected.indexOf(posSorted[i])<0&&!posSorted[i].isExcludedBoard)selected.push(posSorted[i]);
+      }
     }
     if(selected.length===0&&stocks.length>0&&!stocks[0].isExcludedBoard)selected.push(stocks[0]);
     selected.forEach(function(st){result.push({industry:ind,stock:st});});
