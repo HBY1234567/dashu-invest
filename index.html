@@ -201,6 +201,7 @@ input,button{font-family:inherit}
 .pick-tag.buy{background:#052e16;color:#22c55e}
 .pick-tag.hold{background:#451a03;color:#f59e0b}
 .pick-tag.sell{background:#450a0a;color:#ef4444}
+.pick-divider{text-align:center;padding:10px 0;font-size:12px;color:#93c5fd;font-weight:600;border-top:1px dashed #1e40af;margin:10px 0 4px;background:linear-gradient(180deg,rgba(30,58,138,0.15),transparent)}
 .pick-detail{font-size:10px;color:#94a3b8;margin-top:4px;line-height:1.4;padding:4px 6px;background:#0f172a;border-radius:4px;border-left:2px solid #475569}
 .pick-detail.buy-detail{border-left-color:#22c55e}
 .pick-detail.sell-detail{border-left-color:#ef4444}
@@ -1064,12 +1065,20 @@ function renderPick(){
     html+='<div class="empty-hint">当前行业没有可用数据，试试其他行业或刷新行情。</div>';
   } else {
     var curInd='';
+    var lastHeld=-1;
     for(var i=0;i<picks.length;i++){
       var p=picks[i];var d=p.stock;
       if(state.pickSort==='ind' && p.industry!==curInd){
         curInd=p.industry;
         html+='<div class="sec-title">🏭 '+escHtml(curInd)+'</div>';
+        lastHeld=-1;
       }
+      // 未持仓/已持仓分界处插入分隔条
+      var isHeld=heldInds[p.industry]?1:0;
+      if(lastHeld===0 && isHeld===1){
+        html+='<div class="pick-divider">🔵 以下为「本行业已持仓」</div>';
+      }
+      lastHeld=isHeld;
       var sc=indDlScore(d);
       var dl=isDl(d);
       var sig=calcSignal(d);
