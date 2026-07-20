@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src https://qt.gtimg.cn;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src https://qt.gtimg.cn https://web.ifzq.gtimg.cn https://api.github.com;">
 <title>大数投资</title>
 <script>if(location.protocol==='http:'){location.replace('https:'+location.href.slice(5));}</script>
 <style>
@@ -11,7 +11,7 @@
 html,body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh;padding-bottom:64px}
 body{padding-bottom:80px}
 input,button{font-family:inherit}
-.header{background:linear-gradient(135deg,#1e3a5f 0%,#0f172a 100%);padding:18px 16px 14px;border-bottom:1px solid #1e293b}
+.header{background:linear-gradient(135deg,#1e3a5f 0%,#0f172a 100%);padding:18px 16px 14px;border-bottom:1px solid #1e293b;position:relative}
 .header h1{font-size:21px;font-weight:700;color:#fff}
 .header .sub{font-size:12px;color:#64748b;margin-top:4px}
 .content{padding:16px}
@@ -131,6 +131,44 @@ input,button{font-family:inherit}
 .practice-tag{font-size:11px;background:#0f172a;color:#64748b;padding:2px 8px;border-radius:6px;margin-right:6px;margin-bottom:4px;display:inline-block}
 .practice-signal{padding:6px 12px;border-radius:8px;font-size:13px;font-weight:700;text-align:center;margin-top:8px}
 .practice-advice{padding:8px 10px;border-radius:8px;margin-top:8px}
+/* 云同步 */
+.cloud-btn{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#e2e8f0;padding:6px 10px;border-radius:8px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;transition:all .15s}
+.cloud-btn:active{background:rgba(96,165,250,0.25);border-color:#60a5fa}
+.cloud-btn .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#475569}
+.cloud-btn .dot.ok{background:#22c55e}
+.cloud-btn .dot.err{background:#ef4444}
+.cloud-btn .dot.syncing{background:#f59e0b;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.cloud-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;align-items:flex-end;justify-content:center}
+.cloud-modal.show{display:flex}
+.cloud-modal-content{background:#1e293b;border-radius:16px 16px 0 0;padding:20px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;border-top:1px solid #334155}
+.cloud-modal-content h3{color:#fff;font-size:17px;margin-bottom:6px}
+.cloud-modal-content .sub{color:#64748b;font-size:12px;margin-bottom:16px}
+.cloud-row{margin-bottom:14px}
+.cloud-row label{display:block;color:#94a3b8;font-size:12px;margin-bottom:5px}
+.cloud-row input,.cloud-row textarea{width:100%;padding:10px 12px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:13px;outline:none;font-family:inherit}
+.cloud-row input:focus,.cloud-row textarea:focus{border-color:#60a5fa}
+.cloud-row textarea{resize:vertical;min-height:60px}
+.cloud-status-box{background:#0f172a;border:1px solid #334155;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px}
+.cloud-status-box .row{display:flex;justify-content:space-between;padding:3px 0}
+.cloud-status-box .label{color:#64748b}
+.cloud-status-box .val{color:#e2e8f0}
+.cloud-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.cloud-actions button{flex:1;min-width:80px;padding:10px 12px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none}
+.cloud-actions .btn-primary{background:#3b82f6;color:#fff}
+.cloud-actions .btn-secondary{background:#475569;color:#fff}
+.cloud-actions .btn-danger{background:#7f1d1d;color:#fecaca}
+.cloud-actions .btn-primary:disabled,.cloud-actions .btn-secondary:disabled,.cloud-actions .btn-danger:disabled{opacity:.5;cursor:not-allowed}
+.cloud-msg{padding:8px 10px;border-radius:6px;margin-top:10px;font-size:12px;line-height:1.5;display:none}
+.cloud-msg.show{display:block}
+.cloud-msg.ok{background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.3)}
+.cloud-msg.err{background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.3)}
+.cloud-msg.info{background:rgba(96,165,250,0.15);color:#93c5fd;border:1px solid rgba(96,165,250,0.3)}
+.cloud-help{background:#0f172a;border-radius:8px;padding:10px 12px;margin-top:10px;font-size:11px;color:#94a3b8;line-height:1.6}
+.cloud-help a{color:#60a5fa;text-decoration:none}
+.cloud-help ol{margin:6px 0 0 16px;padding:0}
+.cloud-close{position:absolute;right:14px;top:14px;background:none;border:none;color:#64748b;font-size:22px;cursor:pointer;padding:4px 8px}
+.cloud-modal-content{position:relative}
 .advice-head{font-size:13px;font-weight:700;color:#e2e8f0}
 .advice-detail{font-size:11px;color:#94a3b8;margin-top:3px;line-height:1.4}
 /* 市场温度 */
@@ -254,6 +292,7 @@ body.locked{background:#0f172a;overflow:hidden}
 <div class="header">
   <h1>📈 大数投资</h1>
   <div class="sub">行业内排名选股 · 组合分散 · 市场温度计</div>
+  <button class="cloud-btn" id="cloud-btn" onclick="openCloudModal()">☁️ <span id="cloud-btn-label">云同步</span> <span class="dot" id="cloud-dot"></span></button>
 </div>
 <div class="content" id="content">
   <div class="loadbar-wrap" id="initial-loader">
@@ -1337,6 +1376,279 @@ setInterval(function(){if(state.tab==='pick'&&!state.pickLoading&&Object.keys(st
     }
   };
   if(sessionStorage.getItem('dashu_auth')){document.body.classList.remove('locked');document.getElementById('pwd-overlay').style.display='none'}
+})();
+</script>
+
+<!-- 云同步弹窗 -->
+<div class="cloud-modal" id="cloud-modal" onclick="if(event.target===document.getElementById('cloud-modal'))closeCloudModal()">
+  <div class="cloud-modal-content">
+    <button class="cloud-close" onclick="closeCloudModal()">×</button>
+    <h3>☁️ 云同步设置</h3>
+    <div class="sub">持仓数据加密存储在您的 GitHub 私有 Gist，仅您可见</div>
+
+    <div id="cloud-setup-area">
+      <div class="cloud-row">
+        <label>GitHub Personal Access Token（仅需 gist 权限）</label>
+        <input id="cloud-token-input" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxx" autocomplete="off">
+        <div style="margin-top:5px;font-size:11px;color:#64748b">Token 仅保存在本浏览器 localStorage，不经过任何第三方服务器</div>
+      </div>
+    </div>
+
+    <div class="cloud-status-box" id="cloud-status-box" style="display:none">
+      <div class="row"><span class="label">Gist ID</span><span class="val" id="cloud-gist-id">—</span></div>
+      <div class="row"><span class="label">上次同步</span><span class="val" id="cloud-last-sync">—</span></div>
+      <div class="row"><span class="label">本地持仓</span><span class="val" id="cloud-local-count">—</span></div>
+      <div class="row"><span class="label">云端持仓</span><span class="val" id="cloud-remote-count">—</span></div>
+    </div>
+
+    <div class="cloud-actions" id="cloud-actions-primary">
+      <button class="btn-primary" id="cloud-btn-save" onclick="cloudSaveToken()">💾 保存 Token</button>
+      <button class="btn-secondary" id="cloud-btn-backup" onclick="cloudDoBackup()" disabled>⬆️ 备份到云</button>
+      <button class="btn-secondary" id="cloud-btn-restore" onclick="cloudDoRestore()" disabled>⬇️ 从云恢复</button>
+    </div>
+
+    <div class="cloud-msg" id="cloud-msg"></div>
+
+    <div class="cloud-help" id="cloud-help" style="display:none">
+      <b>如何获取 GitHub Token？</b>
+      <ol>
+        <li>打开 <a href="https://github.com/settings/tokens" target="_blank">github.com/settings/tokens</a></li>
+        <li>点击「Generate new token (classic)」</li>
+        <li>勾选 <b>gist</b> 权限（只访问 Gist，最小权限）</li>
+        <li>点击「Generate token」，复制生成的 token</li>
+        <li>粘贴到上方输入框并保存</li>
+      </ol>
+      Token 仅存在本设备浏览器中，大数投资不收集任何数据。
+    </div>
+
+    <div class="cloud-actions" id="cloud-actions-danger" style="display:none">
+      <button class="btn-danger" onclick="cloudClearConfig()">🗑️ 清除同步设置</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var CLOUD_KEY='dashu-cloud-v1';
+  var AUTO_SYNC_DELAY=6000; // 自动同步延迟6秒
+  var _autoTimer=null;
+
+  function getConfig(){try{return JSON.parse(localStorage.getItem(CLOUD_KEY)||'{}');}catch(e){return {};}}
+  function setConfig(c){localStorage.setItem(CLOUD_KEY,JSON.stringify(c));}
+
+  function cloudMsg(el,msg,type){
+    var m=document.getElementById('cloud-msg');
+    m.className='cloud-msg show '+type;m.textContent=msg;
+  }
+
+  function updateCloudUI(){
+    var cfg=getConfig();
+    var box=document.getElementById('cloud-status-box');
+    var help=document.getElementById('cloud-help');
+    var setup=document.getElementById('cloud-setup-area');
+    var actPri=document.getElementById('cloud-actions-primary');
+    var actDan=document.getElementById('cloud-actions-danger');
+    var btnBackup=document.getElementById('cloud-btn-backup');
+    var btnRestore=document.getElementById('cloud-btn-restore');
+    var dot=document.getElementById('cloud-dot');
+    var btnLabel=document.getElementById('cloud-btn-label');
+
+    if(cfg.token){
+      setup.style.display='none';
+      help.style.display='none';
+      box.style.display='block';
+      actDan.style.display='flex';
+      btnBackup.disabled=false;
+      btnRestore.disabled=false;
+      document.getElementById('cloud-gist-id').textContent=cfg.gistId||'（首次备份时创建）';
+      document.getElementById('cloud-last-sync').textContent=cfg.lastSync?(new Date(cfg.lastSync).toLocaleString('zh-CN')):'从未同步';
+      document.getElementById('cloud-local-count').textContent=state.practice.length+' 只';
+      document.getElementById('cloud-remote-count').textContent=cfg.lastData?(cfg.lastData.practice.length+' 只'):'—';
+      if(cfg.lastSync){
+        dot.className='dot ok';
+        btnLabel.textContent='已同步';
+      }else{
+        dot.className='dot';
+        btnLabel.textContent='未同步';
+      }
+    }else{
+      setup.style.display='block';
+      help.style.display='block';
+      box.style.display='none';
+      actDan.style.display='none';
+      btnBackup.disabled=true;
+      btnRestore.disabled=true;
+      dot.className='dot';
+      btnLabel.textContent='云同步';
+    }
+  }
+
+  window.openCloudModal=function(){
+    updateCloudUI();
+    var modal=document.getElementById('cloud-modal');
+    modal.classList.add('show');
+  };
+  window.closeCloudModal=function(){
+    document.getElementById('cloud-modal').classList.remove('show');
+  };
+
+  window.cloudSaveToken=function(){
+    var token=document.getElementById('cloud-token-input').value.trim();
+    if(!token){cloudMsg('cloud-msg','请输入 GitHub Token','err');return;}
+    if(!token.startsWith('ghp_')&&!token.startsWith('github_pat_')){
+      cloudMsg('cloud-msg','Token 格式不正确，应以 ghp_ 或 github_pat_ 开头','err');return;
+    }
+    var cfg=getConfig();cfg.token=token;
+    // 如果已有token，保留gistId
+    setConfig(cfg);
+    cloudMsg('cloud-msg','Token 已保存！可以尝试「备份到云」','ok');
+    updateCloudUI();
+  };
+
+  function gistHeaders(token){
+    return {'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json'};
+  }
+
+  // 备份数据对象
+  function buildBackupData(){
+    return {
+      version:1,
+      lastUpdated:new Date().toISOString(),
+      practice:state.practice.map(function(p){
+        return {code:p.code,name:p.name,industry:p.industry||'',buyPrice:p.buyPrice,shares:p.shares,peAtBuy:p.peAtBuy,pbAtBuy:p.pbAtBuy,week52PosAtBuy:p.week52PosAtBuy,addedAt:p.addedAt};
+      })
+    };
+  }
+
+  window.cloudDoBackup=function(){
+    var cfg=getConfig();if(!cfg.token){cloudMsg('cloud-msg','请先保存 Token','err');return;}
+    cloudMsg('cloud-msg','正在备份…','info');
+    var dot=document.getElementById('cloud-dot');
+    dot.className='dot syncing';
+    document.getElementById('cloud-btn-backup').disabled=true;
+
+    var data=JSON.stringify(buildBackupData());
+    var body=JSON.stringify({
+      description:'大数投资持仓数据备份（自动）',
+      public:false,
+      files:{'dashu-practice.json':{content:data}}
+    });
+
+    var headers=gistHeaders(cfg.token);
+    var url,method;
+    if(cfg.gistId){
+      url='https://api.github.com/gists/'+cfg.gistId;method='PATCH';
+    }else{
+      url='https://api.github.com/gists';method='POST';
+    }
+
+    fetch(url,{method:method,headers:headers,body:body}).then(function(r){
+      if(!r.ok){
+        if(r.status===401)throw new Error('Token 无效或已过期，请检查 Token');
+        if(r.status===403)throw new Error('Token 权限不足，需要 gist 权限');
+        return r.json().then(function(e){throw new Error(e.message||'HTTP '+r.status);});
+      }
+      return r.json();
+    }).then(function(json){
+      var newId=json.id;
+      cfg.gistId=cfg.gistId||newId;
+      cfg.lastSync=new Date().toISOString();
+      cfg.lastData=JSON.parse(data);
+      setConfig(cfg);
+      cloudMsg('cloud-msg','✅ 备份成功！Gist ID: '+newId,'ok');
+      updateCloudUI();
+      document.getElementById('cloud-btn-backup').disabled=false;
+    }).catch(function(e){
+      cloudMsg('cloud-msg','❌ 备份失败：'+e.message,'err');
+      var dot=document.getElementById('cloud-dot');
+      dot.className='dot err';
+      document.getElementById('cloud-btn-backup').disabled=false;
+    });
+  };
+
+  window.cloudDoRestore=function(){
+    var cfg=getConfig();if(!cfg.token){cloudMsg('cloud-msg','请先保存 Token','err');return;}
+    if(!cfg.gistId){
+      cloudMsg('cloud-msg','尚未备份过，无法恢复。请先「备份到云」','err');return;
+    }
+    cloudMsg('cloud-msg','正在从云端恢复…','info');
+    document.getElementById('cloud-btn-restore').disabled=true;
+
+    fetch('https://api.github.com/gists/'+cfg.gistId,{
+      headers:gistHeaders(cfg.token)
+    }).then(function(r){
+      if(!r.ok){
+        if(r.status===401)throw new Error('Token 无效或已过期');
+        if(r.status===404)throw new Error('Gist 不存在，可能已被删除');
+        return r.json().then(function(e){throw new Error(e.message||'HTTP '+r.status);});
+      }
+      return r.json();
+    }).then(function(json){
+      var file=json.files&&json.files['dashu-practice.json'];
+      if(!file)throw new Error('Gist 中未找到 dashu-practice.json');
+      var remote=JSON.parse(file.content);
+      if(!remote.practice||!Array.isArray(remote.practice))throw new Error('备份数据格式无效');
+      var localList=loadPractice();
+      if(localList.length>0&&remote.practice.length>0){
+        var action=confirm('本地已有 '+localList.length+' 条持仓记录。\n\n确定要覆盖为本地的 '+remote.practice.length+' 条记录吗？\n（建议先「备份到云」保存本地数据）');
+        if(!action){document.getElementById('cloud-btn-restore').disabled=false;return;}
+      }
+      var merged=remote.practice;
+      savePractice(merged);state.practice=merged;
+      cfg.lastSync=new Date().toISOString();cfg.lastData=remote;setConfig(cfg);
+      cloudMsg('cloud-msg','✅ 成功恢复 '+merged.length+' 条持仓记录！页面将刷新。','ok');
+      document.getElementById('cloud-btn-restore').disabled=false;
+      updateCloudUI();
+      setTimeout(function(){location.reload();},1500);
+    }).catch(function(e){
+      cloudMsg('cloud-msg','❌ 恢复失败：'+e.message,'err');
+      document.getElementById('cloud-btn-restore').disabled=false;
+    });
+  };
+
+  window.cloudClearConfig=function(){
+    if(!confirm('确定清除云同步设置？\n（不会删除 GitHub 上的 Gist 数据）'))return;
+    localStorage.removeItem(CLOUD_KEY);
+    document.getElementById('cloud-token-input').value='';
+    cloudMsg('cloud-msg','已清除，可重新设置','info');
+    updateCloudUI();
+  };
+
+  // 自动同步：持仓变化后延迟6秒自动备份
+  function scheduleAutoSync(){
+    if(_autoTimer)clearTimeout(_autoTimer);
+    var cfg=getConfig();
+    if(!cfg.token)return;
+    _autoTimer=setTimeout(function(){
+      cloudDoBackupSilent();
+    },AUTO_SYNC_DELAY);
+  }
+
+  function cloudDoBackupSilent(){
+    var cfg=getConfig();if(!cfg.token||!cfg.gistId)return;
+    var dot=document.getElementById('cloud-dot');
+    if(dot)dot.className='dot syncing';
+    var data=JSON.stringify(buildBackupData());
+    fetch('https://api.github.com/gists/'+cfg.gistId,{
+      method:'PATCH',
+      headers:gistHeaders(cfg.token),
+      body:JSON.stringify({files:{'dashu-practice.json':{content:data}}})
+    }).then(function(r){if(r.ok){
+      cfg.lastSync=new Date().toISOString();cfg.lastData=JSON.parse(data);setConfig(cfg);
+      var dot=document.getElementById('cloud-dot');
+      if(dot){dot.className='dot ok';document.getElementById('cloud-btn-label').textContent='已同步';}
+    }}).catch(function(){});
+  }
+
+  // 拦截 savePractice，触发自动同步
+  var _origSavePractice=window.savePractice;
+  window.savePractice=function(list){
+    _origSavePractice(list);
+    scheduleAutoSync();
+  };
+
+  // 初始化时更新按钮状态
+  setTimeout(updateCloudUI,500);
 })();
 </script>
 </body>
