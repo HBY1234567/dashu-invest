@@ -95,7 +95,11 @@ input,button{font-family:inherit}
 .warn-banner{background:#450a0a44;border:1px solid #ef4444;color:#fca5a5;padding:10px 12px;border-radius:10px;font-size:13px;margin-bottom:14px}
 .ind-breakdown{margin-bottom:14px}
 .ind-breakdown .industry-title{margin-bottom:10px}
-.ind-bar-row{margin-bottom:10px}
+.ind-bar-row{margin-bottom:10px;cursor:pointer;padding:6px 8px;border-radius:8px;transition:background .15s}
+.ind-bar-row:hover{background:#1e293b}
+.ind-bar-row.active{background:rgba(59,130,246,.18);outline:1px solid #3b82f6}
+.ind-filter-bar{display:flex;align-items:center;justify-content:space-between;background:rgba(59,130,246,.12);border:1px solid #3b82f6;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:#bfdbfe}
+.ind-filter-bar button{background:#1e40af;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer}
 .ind-bar-head{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
 .ind-bar-name{color:#e2e8f0;font-weight:600}
 .ind-bar-pct{color:#94a3b8}
@@ -349,6 +353,7 @@ const state = {
   pickLive:{}, pickLoading:false,
   pickFilter:{peMax:40,pbMax:5,posMax:100,industry:'ALL'}, pickSort:'ind',
   pickBuild:false, buildCapital:100000,
+  industryFilter:null,
 };
 function $(s){return document.querySelector(s);}
 function escHtml(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -506,18 +511,17 @@ function renderHomeTop(){
   // 组合摘要（有持仓时显示）
   var list=state.practice;
   if(list&&list.length>0){
-    var totalMV=0,totalPrev=0;
+    var totalMV=0,totalCost=0;
     list.forEach(function(item){
       var live=state.livePrices[item.code]||{};
       var cur=live.price||item.buyPrice||0;
-      var prev=live.prevClose||cur;
       totalMV+=cur*item.shares;
-      totalPrev+=prev*item.shares;
+      totalCost+=(item.buyPrice||0)*item.shares;
     });
-    var dayAmt=totalMV-totalPrev;
-    var dayPct=totalPrev>0?(dayAmt/totalPrev*100):0;
-    var dayCls=dayAmt>=0?'gain':'loss';
-    var daySign=dayAmt>=0?'+':'';
+    var gainAmt=totalMV-totalCost;
+    var gainPct=totalCost>0?(gainAmt/totalCost*100):0;
+    var gainCls=gainAmt>=0?'gain':'loss';
+    var gainSign=gainAmt>=0?'+':'';
     var actHalf=0,actFull=0;
     list.forEach(function(item){
       var live=state.livePrices[item.code]||{};
@@ -527,7 +531,7 @@ function renderHomeTop(){
     });
     html+='<div class="home-portfolio">'+
       '<div class="home-pf-row"><span class="l">组合总市值</span><span class="v">¥'+(totalMV/10000).toFixed(2)+'万</span></div>'+
-      '<div class="home-pf-row"><span class="l">今日盈亏（较昨收）</span><span class="v '+dayCls+'">'+daySign+dayPct.toFixed(2)+'% （'+daySign+(dayAmt/10000).toFixed(2)+'万）</span></div>'+
+      '<div class="home-pf-row"><span class="l">浮动盈亏（较买入价）</span><span class="v '+gainCls+'">'+gainSign+gainPct.toFixed(2)+'% （'+gainSign+(gainAmt/10000).toFixed(2)+'万）</span></div>'+
     '</div>';
     if(actHalf>0||actFull>0){
       var actTxt='需关注操作：';
@@ -829,16 +833,22 @@ function renderPortfolio(){
   if(overList.length>0){
     html+='<div class="warn-banner">⚠️ 行业集中度预警：'+overList.join('、')+' 超过 '+SINGLE_INDUSTRY_CAP+'% 上限。大数投资要求跨行业分散，建议减仓或加配其他行业。</div>';
   }
-  html+='<div class="ind-breakdown"><div class="industry-title">🏭 行业分布（单一行业建议≤'+SINGLE_INDUSTRY_CAP+'%）</div>';
+  html+='<div class="ind-breakdown"><div class="industry-title">🏭 行业分布（点击查看持仓，单一行业建议≤'+SINGLE_INDUSTRY_CAP+'%）</div>';
   var indKeys=Object.keys(indMap).sort(function(a,b){return indMap[b].mv-indMap[a].mv;});
   indKeys.forEach(function(k){
     var pct=totalMV>0?indMap[k].mv/totalMV*100:0;
     var over=pct>SINGLE_INDUSTRY_CAP;
-    html+='<div class="ind-bar-row"><div class="ind-bar-head"><span class="ind-bar-name">'+escHtml(k)+'（'+indMap[k].count+'只）</span><span class="ind-bar-pct">'+pct.toFixed(1)+'%</span></div>'+
+    var activeCls=state.industryFilter===k?' active':'';
+    html+='<div class="ind-bar-row'+activeCls+'" data-industry="'+escAttr(k)+'" onclick="filterIndustry(\''+escAttr(k)+'\')"><div class="ind-bar-head"><span class="ind-bar-name">'+escHtml(k)+'（'+indMap[k].count+'只）</span><span class="ind-bar-pct">'+pct.toFixed(1)+'%</span></div>'+
       '<div class="ind-bar-track"><div class="ind-bar-fill '+(over?'over':'ok')+'" style="width:'+Math.min(pct,100)+'%"></div></div></div>';
   });
   html+='</div>';
-  state.practice.forEach(function(item){
+  if(state.industryFilter){
+    var cnt=indMap[state.industryFilter]?indMap[state.industryFilter].count:0;
+    html+='<div class="ind-filter-bar"><span>🏭 仅显示「<b>'+escHtml(state.industryFilter)+'」持仓（'+cnt+' 只）</span><button onclick="clearIndustryFilter()">查看全部</button></div>';
+  }
+  var displayList=state.industryFilter?state.practice.filter(function(it){return it.industry===state.industryFilter;}):state.practice;
+  displayList.forEach(function(item){
     var live=state.livePrices[item.code]||{};
     var cur=live.price||item.buyPrice||0;
     var gain=item.buyPrice?((cur-item.buyPrice)/item.buyPrice*100).toFixed(2):null;
@@ -865,6 +875,19 @@ function renderPortfolio(){
       })()+'</div>';
   });
   c.innerHTML=html+'<div class="footer">每30秒自动刷新 · 🟢买入&lt;30% · 🟡持有30-70% · 🔴卖出&gt;70%</div>';
+}
+function filterIndustry(industry){
+  state.industryFilter=state.industryFilter===industry?null:industry;
+  render();
+  // 滚到持仓列表顶部
+  if(state.industryFilter){
+    var list=document.querySelector('.ind-filter-bar');
+    if(list)list.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+}
+function clearIndustryFilter(){
+  state.industryFilter=null;
+  render();
 }
 async function refreshLivePrices(){
   var promises=state.practice.map(function(item){
