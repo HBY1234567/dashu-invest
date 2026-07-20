@@ -201,6 +201,10 @@ input,button{font-family:inherit}
 .pick-tag.buy{background:#052e16;color:#22c55e}
 .pick-tag.hold{background:#451a03;color:#f59e0b}
 .pick-tag.sell{background:#450a0a;color:#ef4444}
+.pick-detail{font-size:10px;color:#94a3b8;margin-top:4px;line-height:1.4;padding:4px 6px;background:#0f172a;border-radius:4px;border-left:2px solid #475569}
+.pick-detail.buy-detail{border-left-color:#22c55e}
+.pick-detail.sell-detail{border-left-color:#ef4444}
+.pick-detail.hold-detail{border-left-color:#f59e0b}
 .pick-right{text-align:right;flex-shrink:0;margin-left:10px}
 .pick-score{font-size:20px;font-weight:800}
 .pick-sub{font-size:10px;color:#64748b;margin-top:2px}
@@ -1077,6 +1081,7 @@ function renderPick(){
           '<div class="pick-meta">PE '+(d.pe!=null?d.pe.toFixed(2):'—')+(peOk?'✅':'⚠️')+' · PB '+(d.pb!=null?d.pb.toFixed(2):'—')+(pbOk?'✅':'⚠️')+' · 52周'+(d.week52Pos!=null?d.week52Pos+'%':'—')+'</div>'+
           '<div class="pick-tags">'+
             '<span class="pick-tag '+tagCls+'">'+sig.icon+' '+sig.label+'</span>'+
+            (sig.detail?'<div class="pick-detail '+tagCls+'-detail">'+escHtml(sig.detail)+'</div>':'')+
           '</div>'+
         '</div>'+
         '<div class="pick-right">'+
