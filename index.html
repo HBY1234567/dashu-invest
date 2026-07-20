@@ -875,7 +875,16 @@ function renderPortfolio(){
     if(gain!=null)html+='<div class="practice-gain" style="color:'+gainColor+'">'+(parseFloat(gain)>=0?'+':'')+gain+'% '+(gainAmtI!=null?'('+(parseFloat(gain)>=0?'+':'¥')+gainAmtI+')':'')+'</div>';
     html+='<div><span class="practice-tag">52周位置 '+(pos!=null?pos+'%':'—')+'</span></div>'+
       '<div class="practice-signal" style="background:'+sig.cls+';color:'+(sig.cls==='buy'?'#22c55e':sig.cls==='sell'?'#ef4444':'#f59e0b')+'">'+sig.icon+' '+sig.label+' '+(pos!=null?'52周'+pos+'%':'')+'</div><div class="advice-detail" style="font-size:10px;margin-top:4px;color:#94a3b8">'+(sig.detail||sig.sub||'')+'</div>'+
-      (function(){var adv=calcDashuAdvice(gain!=null?parseFloat(gain):null);return '<div class="practice-advice" style="background:'+(adv.cls==='sell'?'rgba(239,68,68,.15)':adv.cls==='warn'?'rgba(245,158,11,.15)':'rgba(34,197,94,.12)')+';border-left:3px solid '+(adv.cls==='sell'?'#ef4444':adv.cls==='warn'?'#f59e0b':'#22c55e')+'"><div class="advice-head">📘 大数投资建议　'+(gain!=null?(parseFloat(gain)>=0?'+':'')+gain+'%　':'')+adv.text+'</div><div class="advice-detail">'+adv.detail+'</div></div>';})()+'</div>';
+      (function(){
+        var adv=calcDashuAdvice(gain!=null?parseFloat(gain):null);
+        var pos=s.week52Pos;
+        var posInfo='';
+        if(pos!=null){
+          var posLabel=pos<30?'🟢低位':pos>70?'🔴高位':'🟡合理';
+          posInfo='<span style="color:#94a3b8;font-size:10px;margin-left:8px">52周'+posLabel+'（'+pos+'%）</span>';
+        }
+        return '<div class="practice-advice" style="background:'+(adv.cls==='sell'?'rgba(239,68,68,.15)':adv.cls==='warn'?'rgba(245,158,11,.15)':'rgba(34,197,94,.12)')+';border-left:3px solid '+(adv.cls==='sell'?'#ef4444':adv.cls==='warn'?'#f59e0b':'#22c55e')+'"><div class="advice-head">📘 大数投资建议　'+(gain!=null?(parseFloat(gain)>=0?'+':'')+gain+'%　':'')+adv.text+posInfo+'</div><div class="advice-detail">'+adv.detail+'</div></div>';
+      })()+'</div>';
   });
   c.innerHTML=html+'<div class="footer">每30秒自动刷新 · 🟢买入&lt;30% · 🟡持有30-70% · 🔴卖出&gt;70%</div>';
 }
