@@ -1011,6 +1011,12 @@ function renderPick(){
       return (a.stock.name||'').localeCompare(b.stock.name||'');
     });
   }
+  // 稳定二级排序：本行业已持仓的股票放到底部（不破坏主排序）
+  picks.sort(function(a,b){
+    var ha=heldInds[a.industry]?1:0;
+    var hb=heldInds[b.industry]?1:0;
+    return ha-hb;
+  });
   // 统计
   var total=all.length;
   var indCovered={};
