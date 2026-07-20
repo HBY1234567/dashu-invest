@@ -856,7 +856,6 @@ function renderPortfolio(){
       '<div class="practice-signal" style="background:'+sig.cls+';color:'+(sig.cls==='buy'?'#22c55e':sig.cls==='sell'?'#ef4444':'#f59e0b')+'">'+sig.icon+' '+sig.label+' '+(pos!=null?'52周'+pos+'%':'')+'</div><div class="advice-detail" style="font-size:10px;margin-top:4px;color:#94a3b8">'+(sig.detail||sig.sub||'')+'</div>'+
       (function(){
         var adv=calcDashuAdvice(gain!=null?parseFloat(gain):null);
-        var pos=s.week52Pos;
         var posInfo='';
         if(pos!=null){
           var posLabel=pos<30?'🟢低位':pos>70?'🔴高位':'🟡合理';
