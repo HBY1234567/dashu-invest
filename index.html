@@ -208,6 +208,9 @@ input,button{font-family:inherit}
 .sec-title{font-size:14px;font-weight:700;color:#e2e8f0;padding:10px 4px 6px;border-bottom:1px solid #1e293b;margin-top:4px}
 .sec-title:first-child{margin-top:0}
 
+/* 锁定时：只显示密码框，隐藏所有其他内容 */
+body.locked > *:not(#pwd-overlay){display:none !important}
+body.locked{background:#0f172a;overflow:hidden}
 /* 密码保护层 */
 #legal-footer{position:fixed;bottom:64px;left:0;right:0;background:linear-gradient(to top,#0f172a 0%,rgba(15,23,42,0.95) 100%);padding:12px 16px;border-top:1px solid #1e293b;z-index:100}
 #legal-footer .legal-content{max-width:480px;margin:0 auto;text-align:center}
@@ -236,7 +239,7 @@ input,button{font-family:inherit}
 #legal-footer .data-source{color:#64748b;font-size:9px;}
 </style>
 </head>
-<body>
+<body class="locked">
 <div class="header">
   <h1>📈 大数投资</h1>
   <div class="sub">行业内排名选股 · 组合分散 · 市场温度计</div>
@@ -1181,16 +1184,17 @@ setInterval(function(){if(state.tab==='pick'&&!state.pickLoading&&Object.keys(st
     var input=i.value.trim();
     var today=new Date().toISOString().slice(0,10);
     var token=simpleHash(input+today+SALT);
-    var expected='5f2b3a8'; // '2026'+日期盐的预期值（每日变化，这里用固定值示例）
-    // 实际使用：console.log(simpleHash('2026'+today+SALT)) 获取当日 expected
-    if(input==='2026'||input.length>0){ // 简化：允许进入，但源码不可见明文逻辑
+    // 真实校验：密码+dashu盐的哈希对比
+    var pwdHash=simpleHash('2026'+SALT);
+    if(simpleHash(input+SALT)===pwdHash){
       sessionStorage.setItem('dashu_auth',token);
+      document.body.classList.remove('locked');
       document.getElementById('pwd-overlay').style.display='none';
     }else{
       m.textContent='密码错误，请重试';b.classList.remove('shake');void b.offsetWidth;b.classList.add('shake');
     }
   };
-  if(sessionStorage.getItem('dashu_auth')){document.getElementById('pwd-overlay').style.display='none'}
+  if(sessionStorage.getItem('dashu_auth')){document.body.classList.remove('locked');document.getElementById('pwd-overlay').style.display='none'}
 })();
 </script>
 </body>
