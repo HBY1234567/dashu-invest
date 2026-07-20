@@ -553,7 +553,7 @@ function renderHomeTop(){
     // 信号分布
     var sigCnt={buy:0,hold:0,sell:0};
     list.forEach(function(item){
-      var pos=item.week52PosAtBuy??(state.livePrices[item.code]||{}).week52Pos??null;
+      var pos=(state.livePrices[item.code]||{}).week52Pos??null;
       var sig=calcSignal({week52Pos:pos});
       sigCnt[sig.cls]++;
     });
@@ -878,7 +878,7 @@ function renderPortfolio(){
   var displayList=state.practice;
   if(state.industryFilter)displayList=displayList.filter(function(it){return it.industry===state.industryFilter;});
   if(state.signalFilter)displayList=displayList.filter(function(it){
-    var pos=it.week52PosAtBuy??(state.livePrices[it.code]||{}).week52Pos??null;
+    var pos=(state.livePrices[it.code]||{}).week52Pos??null;
     var sig=calcSignal({week52Pos:pos});
     return sig.cls===state.signalFilter;
   });
@@ -887,7 +887,7 @@ function renderPortfolio(){
     var cur=live.price||item.buyPrice||0;
     var gain=item.buyPrice?((cur-item.buyPrice)/item.buyPrice*100).toFixed(2):null;
     var gainAmtI=item.buyPrice?((cur-item.buyPrice)*item.shares).toFixed(0):null;
-    var pos=item.week52PosAtBuy??live.week52Pos??null;
+    var pos=live.week52Pos??null;
     var sig=calcSignal({week52Pos:pos});
     var gainColor=gain!=null?(parseFloat(gain)>=0?'#ef4444':'#22c55e'):'#94a3b8';
     html+='<div class="practice-item"><div class="practice-header"><div><div class="practice-name">'+escHtml(item.name)+'</div><div class="practice-code">'+escHtml(item.code.replace(/^(sh|sz|bj)/i,''))+' · '+escHtml(item.industry||'')+'</div></div>'+
