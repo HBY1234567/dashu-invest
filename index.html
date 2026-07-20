@@ -479,7 +479,7 @@ async function fetchStockDetail(code){
   // 52周高低改用东方财富K线（腾讯字段含义不可靠）
   var high52=null,low52=null;
   var pureCode=rawCode;
-  if(WEEK52_CACHE[pureCode]&&Date.now()-WEEK52_CACHE[pureCode].t<24*3600*1000&&WEEK52_CACHE[pureCode].high52!=null){ // 每天刷新一次
+  if(WEEK52_CACHE[pureCode]&&Date.now()-WEEK52_CACHE[pureCode].t<60*1000&&WEEK52_CACHE[pureCode].high52!=null){ // 1分钟刷新一次
     high52=WEEK52_CACHE[pureCode].high52;
     low52=WEEK52_CACHE[pureCode].low52;
   }else{
