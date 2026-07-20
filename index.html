@@ -418,23 +418,28 @@ function loadWeek52Cache(){try{var s=localStorage.getItem('dashu_week52_v1');if(
 function saveWeek52Cache(){try{localStorage.setItem('dashu_week52_v1',JSON.stringify(WEEK52_CACHE));}catch(e){}}
 loadWeek52Cache();
 
-// 东方财富K线拉取并计算近250日高低（52周）
+// 腾讯K线拉取并计算近250日高低（52周）—— 使用 ifzq.gtimg.cn 走腾讯走道，CORS*
 async function fetchWeek52FromEM(code){
-  var pureCode=String(code).replace(/^(sh|sz|bj)/i,'');
-  var secid=pureCode.startsWith('6')?'1.'+pureCode:'0.'+pureCode;
-  var url='https://push2his.eastmoney.com/api/qt/stock/kline/get?secid='+secid+'&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=1&beg='+dateYmdDaysAgo(420)+'&end='+dateYmdToday();
+  var secid=String(code);
+  if(/^\d{6}$/.test(secid))secid=secid.startsWith('6')?'sh'+secid:'sz'+secid;
+  // qfq=前复权；day=日K；,,,320=空<end_date>, <count>= 320个交易日（>52周）
+  var url='https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param='+secid+',day,,,320,qfq';
   try{
-    var resp=await fetch(url,{headers:{'User-Agent':'Mozilla/5.0','Referer':'https://quote.eastmoney.com/'}});
+    var resp=await fetch(url,{headers:{'Referer':'https://gu.qq.com/'}});
     if(!resp.ok)return null;
     var j=await resp.json();
-    var k=j.data;
-    if(!k||!k.klines||k.klines.length===0)return null;
-    var last=k.klines.slice(-260);
+    var codeData=j.data&&j.data[secid];
+    if(!codeData)return null;
+    // 优先 qfqday（前复权）；如果仅 day 可用 day
+    var lines=codeData.qfqday||codeData.day;
+    if(!lines||lines.length===0)return null;
+    // 取最近260个交易日
+    var last=lines.slice(-260);
     var high=0,low=Number.MAX_VALUE;
-    last.forEach(function(line){
-      var p=line.split(',');
-      var h=parseFloat(p[3]);var l=parseFloat(p[4]);
-      if(h>high)high=h;if(l<low)low=l;
+    last.forEach(function(arr){
+      var h=parseFloat(arr[3]);var l=parseFloat(arr[4]);
+      if(!isNaN(h)&&h>high)high=h;
+      if(!isNaN(l)&&l<low)low=l;
     });
     if(high<=0||low>=Number.MAX_VALUE||high<=low)return null;
     return {high52:high,low52:low};
