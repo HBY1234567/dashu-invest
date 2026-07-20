@@ -414,7 +414,7 @@ function calcDashuAdvice(gain){
 }
 // 腾讯行情 API（原生CORS，浏览器直连）
 var WEEK52_CACHE={};
-function loadWeek52Cache(){try{var s=localStorage.getItem('dashu_week52_v1');if(s)WEEK52_CACHE=JSON.parse(s);}catch(e){}}
+function loadWeek52Cache(){try{var s=localStorage.getItem('dashu_week52_v1');if(s){var raw=JSON.parse(s);Object.keys(raw).forEach(function(k){if(raw[k].high52==null)delete raw[k];});WEEK52_CACHE=raw;localStorage.setItem('dashu_week52_v1',JSON.stringify(WEEK52_CACHE));}}catch(e){}}
 function saveWeek52Cache(){try{localStorage.setItem('dashu_week52_v1',JSON.stringify(WEEK52_CACHE));}catch(e){}}
 loadWeek52Cache();
 
@@ -479,7 +479,7 @@ async function fetchStockDetail(code){
   // 52周高低改用东方财富K线（腾讯字段含义不可靠）
   var high52=null,low52=null;
   var pureCode=rawCode;
-  if(WEEK52_CACHE[pureCode]&&Date.now()-WEEK52_CACHE[pureCode].t<24*3600*1000){ // 每天刷新一次
+  if(WEEK52_CACHE[pureCode]&&Date.now()-WEEK52_CACHE[pureCode].t<24*3600*1000&&WEEK52_CACHE[pureCode].high52!=null){ // 每天刷新一次
     high52=WEEK52_CACHE[pureCode].high52;
     low52=WEEK52_CACHE[pureCode].low52;
   }else{
