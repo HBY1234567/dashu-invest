@@ -413,6 +413,42 @@ function calcDashuAdvice(gain){
   return{text:'🟢 持有不动',cls:'hold',detail:'浮盈未达50%，持有等待卖点，不提前下车'};
 }
 // 腾讯行情 API（原生CORS，浏览器直连）
+var WEEK52_CACHE={};
+function loadWeek52Cache(){try{var s=localStorage.getItem('dashu_week52_v1');if(s)WEEK52_CACHE=JSON.parse(s);}catch(e){}}
+function saveWeek52Cache(){try{localStorage.setItem('dashu_week52_v1',JSON.stringify(WEEK52_CACHE));}catch(e){}}
+loadWeek52Cache();
+
+// 东方财富K线拉取并计算近250日高低（52周）
+async function fetchWeek52FromEM(code){
+  var pureCode=String(code).replace(/^(sh|sz|bj)/i,'');
+  var secid=pureCode.startsWith('6')?'1.'+pureCode:'0.'+pureCode;
+  var url='https://push2his.eastmoney.com/api/qt/stock/kline/get?secid='+secid+'&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=1&beg='+dateYmdDaysAgo(420)+'&end='+dateYmdToday();
+  try{
+    var resp=await fetch(url,{headers:{'User-Agent':'Mozilla/5.0','Referer':'https://quote.eastmoney.com/'}});
+    if(!resp.ok)return null;
+    var j=await resp.json();
+    var k=j.data;
+    if(!k||!k.klines||k.klines.length===0)return null;
+    var last=k.klines.slice(-260);
+    var high=0,low=Number.MAX_VALUE;
+    last.forEach(function(line){
+      var p=line.split(',');
+      var h=parseFloat(p[3]);var l=parseFloat(p[4]);
+      if(h>high)high=h;if(l<low)low=l;
+    });
+    if(high<=0||low>=Number.MAX_VALUE||high<=low)return null;
+    return {high52:high,low52:low};
+  }catch(e){return null;}
+}
+function dateYmdToday(){
+  var d=new Date();
+  return d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+}
+function dateYmdDaysAgo(days){
+  var d=new Date();d.setDate(d.getDate()-days);
+  return d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+}
+
 async function fetchStockDetail(code){
   var secid=code;
   if(/^\d{6}$/.test(code))secid=code.startsWith('6')?'sh'+code:'sz'+code;
@@ -430,11 +466,19 @@ async function fetchStockDetail(code){
   var rawCode=(code||'').replace(/^(sh|sz|bj)/i,'');
   var isExcludedBoard=/^(688|300|200|900|8)/.test(rawCode);
   var isETFlike=/^(51|15|56|58|59)/.test(rawCode);
-  var high52=parseFloat(f[52])||null;
-  var low52=parseFloat(f[51])||null;
   var chg=parseFloat(f[31])||null; // 涨跌幅%
   var prevClose=null; // 昨收价（由现价反推：现价/(1+涨跌幅/100)）
   if(price&&chg!=null)prevClose=Math.round((price/(1+chg/100))*1000)/1000;
+  // 52周高低改用东方财富K线（腾讯字段含义不可靠）
+  var high52=null,low52=null;
+  var pureCode=rawCode;
+  if(WEEK52_CACHE[pureCode]&&Date.now()-WEEK52_CACHE[pureCode].t<7*24*3600*1000){
+    high52=WEEK52_CACHE[pureCode].high52;
+    low52=WEEK52_CACHE[pureCode].low52;
+  }else{
+    var em=await fetchWeek52FromEM(pureCode);
+    if(em){high52=em.high52;low52=em.low52;WEEK52_CACHE[pureCode]={high52:high52,low52:low52,t:Date.now()};saveWeek52Cache();}
+  }
   var week52Pos=null;
   if(high52&&low52&&high52>low52&&price){
     week52Pos=Math.round(((price-low52)/(high52-low52))*1000)/10;
