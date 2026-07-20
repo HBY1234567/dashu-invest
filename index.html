@@ -223,17 +223,25 @@ body.locked{background:#0f172a;overflow:hidden}
 #legal-footer .disclaimer{color:#94a3b8;font-size:11px;line-height:1.5;margin-bottom:4px}
 #legal-footer .data-source{color:#64748b;font-size:10px}
 #legal-footer strong{color:#f87171}
-  min-height:100vh;background:#0f172a;z-index:99999;position:fixed;inset:0;padding:20px}
-#pwd-box{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:40px 32px;width:100%;max-width:380px;text-align:center}
-#pwd-box h2{color:#fff;font-size:22px;margin-bottom:8px}
-#pwd-box p{color:#64748b;font-size:13px;margin-bottom:28px}
-#pwd-input{padding:13px 16px;background:#0f172a;border:1px solid #334155;border-radius:10px;
-  color:#e2e8f0;font-size:16px;width:100%;text-align:center;outline:none;margin-bottom:14px}
-#pwd-input:focus{border-color:#60a5fa}
-#pwd-btn{padding:13px;background:#3b82f6;border:none;border-radius:10px;
-  color:#fff;font-size:16px;font-weight:600;cursor:pointer;width:100%}
-#pwd-btn:active{background:#2563eb}
-#pwd-msg{color:#f87171;font-size:13px;margin-top:12px;min-height:18px}
+
+/* 密码保护层 */
+#pwd-overlay{min-height:100vh;background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%);z-index:99999;position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
+#pwd-box{background:rgba(30,41,59,0.95);backdrop-filter:blur(10px);border:1px solid #334155;border-radius:20px;padding:36px 32px 28px;width:100%;max-width:400px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5),0 0 0 1px rgba(96,165,250,0.05);position:relative}
+#pwd-box::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:60%;height:3px;background:linear-gradient(90deg,transparent,#3b82f6,#60a5fa,#3b82f6,transparent);border-radius:0 0 4px 4px}
+#pwd-icon{width:64px;height:64px;margin:0 auto 16px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;box-shadow:0 8px 24px rgba(59,130,246,0.4)}
+#pwd-box h2{color:#fff;font-size:20px;margin-bottom:6px;font-weight:700;letter-spacing:0.5px}
+#pwd-box .pwd-subtitle{color:#94a3b8;font-size:13px;margin-bottom:24px;line-height:1.5}
+#pwd-input{padding:14px 16px;background:#0f172a;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:16px;width:100%;text-align:center;outline:none;margin-bottom:14px;letter-spacing:8px;font-weight:600;transition:all .2s}
+#pwd-input:focus{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(96,165,250,0.15);background:#020617}
+#pwd-input::placeholder{letter-spacing:0;font-weight:400}
+#pwd-btn{padding:14px;background:linear-gradient(135deg,#3b82f6,#2563eb);border:none;border-radius:10px;color:#fff;font-size:16px;font-weight:600;cursor:pointer;width:100%;transition:all .2s;box-shadow:0 4px 12px rgba(59,130,246,0.3)}
+#pwd-btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(59,130,246,0.4)}
+#pwd-btn:active{transform:translateY(0);background:linear-gradient(135deg,#2563eb,#1d4ed8)}
+#pwd-msg{color:#f87171;font-size:13px;margin-top:12px;min-height:18px;display:flex;align-items:center;justify-content:center;gap:4px}
+#pwd-risk{border-top:1px dashed #334155;margin-top:20px;padding-top:16px;text-align:left}
+#pwd-risk .risk-title{color:#fbbf24;font-size:13px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px;justify-content:center}
+#pwd-risk .risk-text{color:#94a3b8;font-size:11px;line-height:1.7;text-align:center}
+#pwd-risk .risk-text strong{color:#f87171}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
 .shake{animation:shake .3s ease}
 /* 法律免责声明 */
@@ -1183,12 +1191,19 @@ setInterval(function(){if(state.tab==='pick'&&!state.pickLoading&&Object.keys(st
 
 <div id="pwd-overlay">
   <div id="pwd-box">
-    <h2>🔒 大数投资 · 学习研究工具</h2>
-    <p style="color:#64748b;font-size:13px;margin-bottom:8px">本网站仅供学习研究，不构成投资建议</p>
-    <p style="color:#fbbf24;font-size:12px;margin-bottom:16px">⚠️ 股市有风险，投资需谨慎</p>
-    <input id="pwd-input" type="password" placeholder="请输入访问密码" onkeydown="if(event.key==='Enter')checkPwd()">
-    <button id="pwd-btn" onclick="checkPwd()">进入</button>
+    <div id="pwd-icon">🔒</div>
+    <h2>大数投资</h2>
+    <div class="pwd-subtitle">学习研究工具 · 内部使用</div>
+    <input id="pwd-input" type="password" placeholder="请输入访问密码" onkeydown="if(event.key==='Enter')checkPwd()" autocomplete="off">
+    <button id="pwd-btn" onclick="checkPwd()">进入系统</button>
     <div id="pwd-msg"></div>
+    <div id="pwd-risk">
+      <div class="risk-title">⚠️ 重要风险提示</div>
+      <div class="risk-text">
+        本站所有内容<strong>仅供学习研究参考</strong>，<strong>不构成任何投资建议</strong><br>
+        股市有风险，投资需谨慎；据此操作，<strong>风险自担</strong>
+      </div>
+    </div>
   </div>
 </div>
 <script>
