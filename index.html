@@ -63,6 +63,7 @@ input,button{font-family:inherit}
 .signal-banner.empty{background:#1e293b;border-color:#475569;color:#94a3b8}
 .signal-banner .signal-label{font-size:22px;margin-bottom:4px}
 .signal-banner .signal-sub{font-size:12px;font-weight:400;opacity:.8}
+.signal-banner .signal-detail{font-size:11px;font-weight:400;opacity:.65;margin-top:6px;padding-top:6px;border-top:1px dashed currentColor;line-height:1.6}
 .metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
 .metric{background:#0f172a;border-radius:10px;padding:12px 10px;text-align:center}
 .metric-label{font-size:11px;color:#64748b;margin-bottom:4px}
@@ -362,19 +363,36 @@ function chgColor(c){if(c==null)return'#94a3b8';return c>=0?'#ef4444':'#22c55e';
 // 大数投资信号：52周位置为核心 + 双低辅助
 function calcSignal(d){
   var pos=d.week52Pos;
-  if(pos==null)return{label:'数据不足',cls:'empty',icon:'⚪',sub:'52周数据缺失 · 仅供参考'};
-  var peOk=d.pe!=null&&d.pe>0&&d.pe<=PE_THRESHOLD;
-  var pbOk=d.pb!=null&&d.pb>0&&d.pb<=PB_THRESHOLD;
+  if(pos==null)return{label:'数据不足',cls:'empty',icon:'⚪',sub:'52周数据缺失',detail:'52周数据缺失，无法判断位置'};
+  var pe=d.pe,pb=d.pb;
+  var peOk=pe!=null&&pe>0&&pe<=PE_THRESHOLD;
+  var pbOk=pb!=null&&pb>0&&pb<=PB_THRESHOLD;
+  var peStr=pe!=null?'PE='+pe:(pe===0?'PE=0(亏损)':'PE未知');
+  var pbStr=pb!=null?'PB='+pb:'PB未知';
   if(pos<30){
     var tag='';
-    if(peOk&&pbOk)tag='双低+低价';
-    else if(peOk)tag='PE低+低价';
-    else if(pbOk)tag='PB低+低价';
-    else tag='价格低位';
-    return{label:'建议买入',cls:'buy',icon:'🟢',sub:'52周位置'+pos+'% · '+tag+' · 仅供参考'};
+    if(peOk&&pbOk)tag='双低优秀';
+    else if(peOk)tag='PE偏低';
+    else if(pbOk)tag='PB偏低';
+    else tag='仅价格低';
+    return{label:'建议买入',cls:'buy',icon:'🟢',sub:'52周位置'+pos+'% · '+tag+' · 仅供参考',
+      detail:'52周位置'+pos+'%，处于历史低位 | '+peStr+' | '+pbStr+' | '+tag};
   }
-  if(pos>70)return{label:'建议卖出',cls:'sell',icon:'🔴',sub:'52周位置'+pos+'% · 价格高位 · 仅供参考'};
-  return{label:'持有',cls:'hold',icon:'🟡',sub:'52周位置'+pos+'% · 合理区间 · 仅供参考'};
+  if(pos>70){
+    var risk='';
+    if(peOk&&pbOk)risk='但双低达标，可观察';
+    else if(peOk||pbOk)risk='PE或PB仍偏低';
+    else risk='高估值+价格高位';
+    return{label:'建议卖出',cls:'sell',icon:'🔴',sub:'52周位置'+pos+'% · 价格高位 · 仅供参考',
+      detail:'52周位置'+pos+'%，处于历史高位（>70%）| '+peStr+' | '+pbStr+' | '+risk};
+  }
+  var holdNote='';
+  if(peOk&&pbOk)holdNote='双低，继续持有';
+  else if(peOk)holdNote='PE偏低';
+  else if(pbOk)holdNote='PB偏低';
+  else holdNote='估值一般';
+  return{label:'持有',cls:'hold',icon:'🟡',sub:'52周位置'+pos+'% · 合理区间 · 仅供参考',
+    detail:'52周位置'+pos+'%，处于30-70%合理区间 | '+peStr+' | '+pbStr+' | '+holdNote};
 }
 // 大数投资买卖建议：以「相对买入价的浮盈亏」为判据
 // 涨50%卖一半(锁定本金) · 涨100%清仓(落袋为安) · 其余持有不动
@@ -716,7 +734,7 @@ function renderDetail(){
   var html='<button class="back-btn" onclick="goBack()">← 返回列表</button><div class="card">';
   html+='<div class="detail-header"><div><div class="detail-name">'+escHtml(s.name)+'</div><div class="detail-code">'+escHtml((s.code||'').replace(/^(sh|sz|bj)/i,''))+'</div></div>'+
     '<div><div class="detail-price">'+(s.price?'¥'+s.price:'—')+'</div>'+(s.chg!=null?'<div class="detail-meta" style="color:'+chgColor(s.chg)+'">'+(s.chg>=0?'+':'')+s.chg+'%</div>':'')+'</div></div>';
-  html+='<div class="signal-banner '+sig.cls+'"><div class="signal-label">'+sig.icon+' '+sig.label+'</div><div class="signal-sub">'+sig.sub+'</div></div>';
+  html+='<div class="signal-banner '+sig.cls+'"><div class="signal-label">'+sig.icon+' '+sig.label+'</div><div class="signal-sub">'+sig.sub+'</div>'+(sig.detail?'<div class="signal-detail">'+sig.detail+'</div>':'')+'</div>';
   html+='<div class="double-low '+(doubleLow?'':'no')+'">'+(doubleLow?'🌟 双低达标：PE≤'+PE_THRESHOLD+' 且 PB≤'+PB_THRESHOLD:'⚠️ 未达双低：'+(!peOk?'PE>'+PE_THRESHOLD:'')+(!pbOk?' PB>'+PB_THRESHOLD:''))+'</div>';
   var peCls=s.pe!=null?(peOk?'metric-ok':'metric-fail'):'metric-neutral';
   var pbCls=s.pb!=null?(pbOk?'metric-ok':'metric-fail'):'metric-neutral';
@@ -753,7 +771,7 @@ function renderStockCard(s,live){
   var html='<div class="card">';
   html+='<div class="detail-header"><div><div class="detail-name">'+escHtml(d.name)+'</div><div class="detail-code">'+escHtml((d.code||'').replace(/^(sh|sz|bj)/i,''))+'</div></div>'+
     '<div><div class="detail-price">'+(d.price?'¥'+d.price:'—')+'</div>'+(d.chg!=null?'<div class="detail-meta" style="color:'+chgColor(d.chg)+'">'+(d.chg>=0?'+':'')+d.chg+'%</div>':'')+'</div></div>';
-  html+='<div class="signal-banner '+sig.cls+'"><div class="signal-label">'+sig.icon+' '+sig.label+'</div><div class="signal-sub">'+sig.sub+'</div></div>';
+  html+='<div class="signal-banner '+sig.cls+'"><div class="signal-label">'+sig.icon+' '+sig.label+'</div><div class="signal-sub">'+sig.sub+'</div>'+(sig.detail?'<div class="signal-detail">'+sig.detail+'</div>':'')+'</div>';
   html+='<div class="double-low '+(doubleLow?'':'no')+'">'+(doubleLow?'🌟 双低达标：PE≤'+PE_THRESHOLD+' 且 PB≤'+PB_THRESHOLD:'⚠️ 未达双低：'+(!peOk?'PE>'+PE_THRESHOLD:'')+(!pbOk?' PB>'+PB_THRESHOLD:''))+'</div>';
   var peCls=d.pe!=null?(peOk?'metric-ok':'metric-fail'):'metric-neutral';
   var pbCls=d.pb!=null?(pbOk?'metric-ok':'metric-fail'):'metric-neutral';
@@ -840,7 +858,7 @@ function renderPortfolio(){
       '<div class="practice-grid-item"><div class="practice-grid-label">当前价</div><div class="practice-grid-value">'+(live.price?'¥'+live.price:'…')+'</div></div></div>';
     if(gain!=null)html+='<div class="practice-gain" style="color:'+gainColor+'">'+(parseFloat(gain)>=0?'+':'')+gain+'% '+(gainAmtI!=null?'('+(parseFloat(gain)>=0?'+':'¥')+gainAmtI+')':'')+'</div>';
     html+='<div><span class="practice-tag">52周位置 '+(pos!=null?pos+'%':'—')+'</span></div>'+
-      '<div class="practice-signal" style="background:'+sig.cls+';color:'+(sig.cls==='buy'?'#22c55e':sig.cls==='sell'?'#ef4444':'#f59e0b')+'">'+sig.icon+' '+sig.label+' '+(pos!=null?'52周'+pos+'%':'')+'</div>'+
+      '<div class="practice-signal" style="background:'+sig.cls+';color:'+(sig.cls==='buy'?'#22c55e':sig.cls==='sell'?'#ef4444':'#f59e0b')+'">'+sig.icon+' '+sig.label+' '+(pos!=null?'52周'+pos+'%':'')+'</div><div class="advice-detail" style="font-size:10px;margin-top:4px;color:#94a3b8">'+(sig.detail||sig.sub||'')+'</div>'+
       (function(){var adv=calcDashuAdvice(gain!=null?parseFloat(gain):null);return '<div class="practice-advice" style="background:'+(adv.cls==='sell'?'rgba(239,68,68,.15)':adv.cls==='warn'?'rgba(245,158,11,.15)':'rgba(34,197,94,.12)')+';border-left:3px solid '+(adv.cls==='sell'?'#ef4444':adv.cls==='warn'?'#f59e0b':'#22c55e')+'"><div class="advice-head">📘 大数投资建议　'+(gain!=null?(parseFloat(gain)>=0?'+':'')+gain+'%　':'')+adv.text+'</div><div class="advice-detail">'+adv.detail+'</div></div>';})()+'</div>';
   });
   c.innerHTML=html+'<div class="footer">每30秒自动刷新 · 🟢买入&lt;30% · 🟡持有30-70% · 🔴卖出&gt;70%</div>';
@@ -1024,7 +1042,7 @@ function renderPick(){
       '<div class="pf-row"><div class="pf-field"><label>总资金（元）· 等权建仓建议</label><input id="build-cap" type="number" step="1000" value="'+cap+'" onchange="state.buildCapital=parseFloat(this.value)||100000;renderPick();"></div></div>'+
       '<div style="font-size:13px;color:#94a3b8;margin-bottom:8px">共 <b style="color:#6ee7b7">'+n+'</b> 只（'+indCount+'个行业），每只等权约 <b style="color:#6ee7b7">¥'+per.toLocaleString()+'</b></div>';
     for(var bi=0;bi<n;bi++){var bp=picks[bi].stock;
-      html+='<div class="pick-card" style="cursor:default"><div class="pick-left"><div class="pick-name">'+escHtml(bp.name)+' <span style="font-size:11px;color:#64748b">'+escHtml((bp.code||'').replace(/^(sh|sz|bj)/i,''))+'</span><span style="font-size:11px;color:#94a3b8;margin-left:6px">· '+escHtml(picks[bi].industry)+'</span>'+(heldInds[picks[bi].industry]?'<span style="font-size:11px;color:#93c5fd;margin-left:6px">🔵已持仓</span>':'')+'</div><div class="pick-meta">建议买入约 ¥'+per.toLocaleString()+'</div></div></div>';
+      html+='<div class="pick-card" style="cursor:default"><div class="pick-left"><div class="pick-name">'+escHtml(bp.name)+' <span style="font-size:11px;color:#64748b">'+escHtml((bp.code||'').replace(/^(sh|sz|bj)/i,''))+'</span><span style="font-size:11px;color:#94a3b8;margin-left:6px">· '+escHtml(picks[bi].industry)+'</span>'+(heldInds[picks[bi].industry]?'<span style="font-size:11px;color:#93c5fd;margin-left:6px">🔵本行业已持仓</span>':'')+'</div><div class="pick-meta">建议买入约 ¥'+per.toLocaleString()+'</div></div></div>';
     }
     html+='</div>';
   }
@@ -1051,7 +1069,7 @@ function renderPick(){
         '<div class="pick-left">'+
           '<div class="pick-name">'+escHtml(d.name)+' <span style="font-size:11px;color:#64748b">'+escHtml((d.code||'').replace(/^(sh|sz|bj)/i,''))+'</span>'+
             (state.pickSort!=='ind'?'<span style="font-size:11px;color:#94a3b8;margin-left:6px">· '+escHtml(d.industry)+'</span>':'')+
-            (heldInds[d.industry]?'<span style="font-size:11px;color:#93c5fd;margin-left:6px">🔵已持仓</span>':'')+
+            (heldInds[d.industry]?'<span style="font-size:11px;color:#93c5fd;margin-left:6px">🔵本行业已持仓</span>':'')+
           '</div>'+
           '<div class="pick-meta">PE '+(d.pe!=null?d.pe.toFixed(2):'—')+(peOk?'✅':'⚠️')+' · PB '+(d.pb!=null?d.pb.toFixed(2):'—')+(pbOk?'✅':'⚠️')+' · 52周'+(d.week52Pos!=null?d.week52Pos+'%':'—')+'</div>'+
           '<div class="pick-tags">'+
