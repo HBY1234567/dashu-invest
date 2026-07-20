@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src https://qt.gtimg.cn;">
-<title>大数投资 - 学习研究工具</title>
+<title>大数投资</title>
 <script>if(location.protocol==='http:'){location.replace('https:'+location.href.slice(5));}</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -217,13 +217,7 @@ input,button{font-family:inherit}
 /* 锁定时：只显示密码框，隐藏所有其他内容 */
 body.locked > *:not(#pwd-overlay){display:none !important}
 body.locked{background:#0f172a;overflow:hidden}
-/* 法律免责声明（位于底部导航栏上方，不再 fixed 避免拦截点击） */
-#legal-footer{background:linear-gradient(to top,#0f172a 0%,rgba(15,23,42,0.95) 100%);padding:12px 16px;border-top:1px solid #1e293b;margin-top:24px}
-#legal-footer .legal-content{max-width:480px;margin:0 auto;text-align:center}
-#legal-footer .risk-warning{color:#fbbf24;font-size:13px;font-weight:700;margin-bottom:6px}
-#legal-footer .disclaimer{color:#94a3b8;font-size:11px;line-height:1.5;margin-bottom:4px}
-#legal-footer .data-source{color:#64748b;font-size:10px}
-#legal-footer strong{color:#f87171}
+/* 密码提示文字 */
 
 /* 密码保护层 */
 #pwd-overlay{min-height:100vh;background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%);z-index:99999;position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
@@ -239,10 +233,7 @@ body.locked{background:#0f172a;overflow:hidden}
 #pwd-btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(59,130,246,0.4)}
 #pwd-btn:active{transform:translateY(0);background:linear-gradient(135deg,#2563eb,#1d4ed8)}
 #pwd-msg{color:#f87171;font-size:13px;margin-top:12px;min-height:18px;display:flex;align-items:center;justify-content:center;gap:4px}
-#pwd-risk{border-top:1px dashed #334155;margin-top:20px;padding-top:16px;text-align:left}
-#pwd-risk .risk-title{color:#fbbf24;font-size:13px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px;justify-content:center}
-#pwd-risk .risk-text{color:#94a3b8;font-size:11px;line-height:1.7;text-align:center}
-#pwd-risk .risk-text strong{color:#f87171}
+
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
 .shake{animation:shake .3s ease}
 </style>
@@ -270,13 +261,6 @@ body.locked{background:#0f172a;overflow:hidden}
   </div>
   <div class="empty-hint">🔍 输入股票代码或名称开始搜索</div>
 </div>
-<!-- 法律免责声明（位于导航栏上方，不再 fixed 避免拦截点击） -->
-<div id="legal-footer">
-  <div class="legal-content">
-    <p class="risk-warning">⚠️ 风险提示：股市有风险，投资需谨慎</p>
-    <p class="disclaimer">本网站提供的所有数据、信息和分析仅供学习和研究使用，<strong>不构成任何投资建议或投资依据</strong>。数据来源于第三方公开行情接口，不保证准确性、完整性和及时性。用户据此操作，风险自担，本站不承担任何责任。</p>
-    <p class="data-source">数据来源：腾讯财经（仅供参考）</p>
-  </div>
 </div>
 <div class="bottomnav">
   <button class="home-btn" onclick="goHome()">🏠<span>返回主页</span></button>
@@ -285,7 +269,6 @@ body.locked{background:#0f172a;overflow:hidden}
   <button id="nav-market" onclick="switchTab('market')">🌡<span>温度</span></button>
   <button id="nav-pick" onclick="switchTab('pick')">🌟<span>优选</span></button>
 </div>
-<!-- 法律免责声明 -->
 <noscript>
 <div style="padding:24px;text-align:center;color:#f59e0b"><h2>⚠️ 请开启 JavaScript</h2><p style="margin-top:12px">大数投资需要 JavaScript 才能查询股票行情。请在浏览器设置中启用 JavaScript 后刷新页面。</p></div>
 </noscript>
@@ -387,7 +370,7 @@ function calcSignal(d){
     else if(peOk)tag='PE偏低';
     else if(pbOk)tag='PB偏低';
     else tag='仅价格低';
-    return{label:'建议买入',cls:'buy',icon:'🟢',sub:'52周位置'+pos+'% · '+tag+' · 仅供参考',
+    return{label:'建议买入',cls:'buy',icon:'🟢',sub:'52周位置'+pos+'% · '+tag,
       detail:'52周位置'+pos+'%，处于历史低位 | '+peStr+' | '+pbStr+' | '+tag};
   }
   if(pos>70){
@@ -395,7 +378,7 @@ function calcSignal(d){
     if(peOk&&pbOk)risk='但双低达标，可观察';
     else if(peOk||pbOk)risk='PE或PB仍偏低';
     else risk='高估值+价格高位';
-    return{label:'建议卖出',cls:'sell',icon:'🔴',sub:'52周位置'+pos+'% · 价格高位 · 仅供参考',
+    return{label:'建议卖出',cls:'sell',icon:'🔴',sub:'52周位置'+pos+'% · 价格高位',
       detail:'52周位置'+pos+'%，处于历史高位（>70%）| '+peStr+' | '+pbStr+' | '+risk};
   }
   var holdNote='';
@@ -403,7 +386,7 @@ function calcSignal(d){
   else if(peOk)holdNote='PE偏低';
   else if(pbOk)holdNote='PB偏低';
   else holdNote='估值一般';
-  return{label:'持有',cls:'hold',icon:'🟡',sub:'52周位置'+pos+'% · 合理区间 · 仅供参考',
+  return{label:'持有',cls:'hold',icon:'🟡',sub:'52周位置'+pos+'% · 合理区间',
     detail:'52周位置'+pos+'%，处于30-70%合理区间 | '+peStr+' | '+pbStr+' | '+holdNote};
 }
 // 大数投资买卖建议：以「相对买入价的浮盈亏」为判据
@@ -918,7 +901,7 @@ function renderMarket(){
     '<div style="font-size:13px;color:#64748b">历史分位约 '+pct+'% · '+level+'</div>'+
     '<div class="thermo-scale"><div class="thermo-marker" style="left:'+pct+'%"></div></div>'+
     '<div class="thermo-advice" style="color:'+color+'">'+advice+'</div>'+
-    '<div class="thermo-note">'+note+'<br>（分位按近10年 PE 区间 '+HS300_PE_MIN+'–'+HS300_PE_MAX+' 估算，仅供参考）</div>'+
+    '<div class="thermo-note">'+note+'<br>（分位按近10年 PE 区间 '+HS300_PE_MIN+'–'+HS300_PE_MAX+' 估算）</div>'+
   '</div>';
   html+='<div class="industry-section"><div class="industry-title">🔥 行业热度（涨跌幅 · 52周位置）</div><div class="heatmap">';
   for(var i=0;i<INDUSTRY_RECS.length;i++){
@@ -1198,17 +1181,10 @@ setInterval(function(){if(state.tab==='pick'&&!state.pickLoading&&Object.keys(st
   <div id="pwd-box">
     <div id="pwd-icon">🔒</div>
     <h2>大数投资</h2>
-    <div class="pwd-subtitle">学习研究工具 · 内部使用</div>
+    <div class="pwd-subtitle">大数投资工具</div>
     <input id="pwd-input" type="password" placeholder="请输入访问密码" onkeydown="if(event.key==='Enter')checkPwd()" autocomplete="off">
     <button id="pwd-btn" onclick="checkPwd()">进入系统</button>
     <div id="pwd-msg"></div>
-    <div id="pwd-risk">
-      <div class="risk-title">⚠️ 重要风险提示</div>
-      <div class="risk-text">
-        本站所有内容<strong>仅供学习研究参考</strong>，<strong>不构成任何投资建议</strong><br>
-        股市有风险，投资需谨慎；据此操作，<strong>风险自担</strong>
-      </div>
-    </div>
   </div>
 </div>
 <script>
