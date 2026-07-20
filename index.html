@@ -1384,15 +1384,7 @@ setInterval(function(){if(state.tab==='pick'&&!state.pickLoading&&Object.keys(st
   <div class="cloud-modal-content">
     <button class="cloud-close" onclick="closeCloudModal()">×</button>
     <h3>☁️ 云同步设置</h3>
-    <div class="sub">持仓数据加密存储在您的 GitHub 私有 Gist，仅您可见</div>
-
-    <div id="cloud-setup-area">
-      <div class="cloud-row">
-        <label>GitHub Personal Access Token（仅需 gist 权限）</label>
-        <input id="cloud-token-input" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxx" autocomplete="off">
-        <div style="margin-top:5px;font-size:11px;color:#64748b">Token 仅保存在本浏览器 localStorage，不经过任何第三方服务器</div>
-      </div>
-    </div>
+    <div class="sub">持仓数据存储在您的 GitHub 私有 Gist，任何手机均可一键恢复</div>
 
     <div class="cloud-status-box" id="cloud-status-box" style="display:none">
       <div class="row"><span class="label">Gist ID</span><span class="val" id="cloud-gist-id">—</span></div>
@@ -1402,24 +1394,11 @@ setInterval(function(){if(state.tab==='pick'&&!state.pickLoading&&Object.keys(st
     </div>
 
     <div class="cloud-actions" id="cloud-actions-primary">
-      <button class="btn-primary" id="cloud-btn-save" onclick="cloudSaveToken()">💾 保存 Token</button>
-      <button class="btn-secondary" id="cloud-btn-backup" onclick="cloudDoBackup()" disabled>⬆️ 备份到云</button>
-      <button class="btn-secondary" id="cloud-btn-restore" onclick="cloudDoRestore()" disabled>⬇️ 从云恢复</button>
+      <button class="btn-primary" id="cloud-btn-backup" onclick="cloudDoBackup()">⬆️ 备份到云</button>
+      <button class="btn-secondary" id="cloud-btn-restore" onclick="cloudDoRestore()">⬇️ 从云恢复</button>
     </div>
 
     <div class="cloud-msg" id="cloud-msg"></div>
-
-    <div class="cloud-help" id="cloud-help" style="display:none">
-      <b>如何获取 GitHub Token？</b>
-      <ol>
-        <li>打开 <a href="https://github.com/settings/tokens" target="_blank">github.com/settings/tokens</a></li>
-        <li>点击「Generate new token (classic)」</li>
-        <li>勾选 <b>gist</b> 权限（只访问 Gist，最小权限）</li>
-        <li>点击「Generate token」，复制生成的 token</li>
-        <li>粘贴到上方输入框并保存</li>
-      </ol>
-      Token 仅存在本设备浏览器中，大数投资不收集任何数据。
-    </div>
 
     <div class="cloud-actions" id="cloud-actions-danger" style="display:none">
       <button class="btn-danger" onclick="cloudClearConfig()">🗑️ 清除同步设置</button>
@@ -1430,10 +1409,12 @@ setInterval(function(){if(state.tab==='pick'&&!state.pickLoading&&Object.keys(st
 <script>
 (function(){
   var CLOUD_KEY='dashu-cloud-v1';
+  // 内置 Token，换手机无需重新输入
+  var DEFAULT_TOKEN='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';
   var AUTO_SYNC_DELAY=6000; // 自动同步延迟6秒
   var _autoTimer=null;
 
-  function getConfig(){try{return JSON.parse(localStorage.getItem(CLOUD_KEY)||'{}');}catch(e){return {};}}
+  function getConfig(){try{var c=JSON.parse(localStorage.getItem(CLOUD_KEY)||'{}');if(!c.token)c.token=DEFAULT_TOKEN;return c;}catch(e){return {token:DEFAULT_TOKEN};}}
   function setConfig(c){localStorage.setItem(CLOUD_KEY,JSON.stringify(c));}
 
   function cloudMsg(el,msg,type){
@@ -1444,8 +1425,6 @@ setInterval(function(){if(state.tab==='pick'&&!state.pickLoading&&Object.keys(st
   function updateCloudUI(){
     var cfg=getConfig();
     var box=document.getElementById('cloud-status-box');
-    var help=document.getElementById('cloud-help');
-    var setup=document.getElementById('cloud-setup-area');
     var actPri=document.getElementById('cloud-actions-primary');
     var actDan=document.getElementById('cloud-actions-danger');
     var btnBackup=document.getElementById('cloud-btn-backup');
@@ -1454,8 +1433,6 @@ setInterval(function(){if(state.tab==='pick'&&!state.pickLoading&&Object.keys(st
     var btnLabel=document.getElementById('cloud-btn-label');
 
     if(cfg.token){
-      setup.style.display='none';
-      help.style.display='none';
       box.style.display='block';
       actDan.style.display='flex';
       btnBackup.disabled=false;
@@ -1471,15 +1448,6 @@ setInterval(function(){if(state.tab==='pick'&&!state.pickLoading&&Object.keys(st
         dot.className='dot';
         btnLabel.textContent='未同步';
       }
-    }else{
-      setup.style.display='block';
-      help.style.display='block';
-      box.style.display='none';
-      actDan.style.display='none';
-      btnBackup.disabled=true;
-      btnRestore.disabled=true;
-      dot.className='dot';
-      btnLabel.textContent='云同步';
     }
   }
 
