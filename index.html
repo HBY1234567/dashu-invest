@@ -430,9 +430,9 @@ async function fetchStockDetail(code){
   var rawCode=(code||'').replace(/^(sh|sz|bj)/i,'');
   var isExcludedBoard=/^(688|300|200|900|8)/.test(rawCode);
   var isETFlike=/^(51|15|56|58|59)/.test(rawCode);
-  var high52=parseFloat(f[47])||null;
-  var low52=parseFloat(f[48])||null;
-  var chg=parseFloat(f[31])||null; // 涨跌幅%
+  var high52=parseFloat(f[33])||null;
+  var low52=parseFloat(f[34])||null;
+  var chg=parseFloat(f[32])||null; // 涨跌幅%
   var prevClose=null; // 昨收价（由现价反推：现价/(1+涨跌幅/100)）
   if(price&&chg!=null)prevClose=Math.round((price/(1+chg/100))*1000)/1000;
   var week52Pos=null;
