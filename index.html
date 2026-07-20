@@ -471,13 +471,15 @@ async function fetchStockDetail(code){
   var rawCode=(code||'').replace(/^(sh|sz|bj)/i,'');
   var isExcludedBoard=/^(688|300|200|900|8)/.test(rawCode);
   var isETFlike=/^(51|15|56|58|59)/.test(rawCode);
-  var chg=parseFloat(f[31])||null; // 涨跌幅%
+  // 指数涨跌用 f[32]（涨跌幅%），个股涨跌用 f[31]
+  var isIndex=/^(sh000001|sz399001)$/i.test(code);
+  var chg=parseFloat(isIndex?f[32]:f[31])||null; // 涨跌幅%
   var prevClose=null; // 昨收价（由现价反推：现价/(1+涨跌幅/100)）
   if(price&&chg!=null)prevClose=Math.round((price/(1+chg/100))*1000)/1000;
   // 52周高低改用东方财富K线（腾讯字段含义不可靠）
   var high52=null,low52=null;
   var pureCode=rawCode;
-  if(WEEK52_CACHE[pureCode]&&Date.now()-WEEK52_CACHE[pureCode].t<7*24*3600*1000){
+  if(WEEK52_CACHE[pureCode]&&Date.now()-WEEK52_CACHE[pureCode].t<24*3600*1000){ // 每天刷新一次
     high52=WEEK52_CACHE[pureCode].high52;
     low52=WEEK52_CACHE[pureCode].low52;
   }else{
