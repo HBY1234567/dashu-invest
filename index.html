@@ -586,7 +586,8 @@ function showSellSignalModal(code) {
       { type: 'half', label: '卖出一半', desc: '套现 ¥' + Math.round(proceedHalf).toLocaleString() + '，剩余 ' + keepShares + ' 股', annualDiv: halfDiv },
       { type: 'hold', label: '继续持有', desc: '不操作，等待更高点', annualDiv: holdDiv }
     ];
-    suggestType = opts[0].annualDiv >= opts[1].annualDiv ? 'half' : 'hold';
+    // 按股息年化 vs 卖出收益率决定推荐：股息高→持有，卖出收益高→卖一半
+    suggestType = divRate > sellGain ? 'hold' : 'half';
     optionsHtml = opts.map(function(o) {
       return '<div class="sell-opt" onclick="selectSellOpt(this)" data-type="'+o.type+'" data-code="'+code+'">' +
         '<div class="sell-opt-title">'+o.label+' '+(o.type === suggestType ? '💡推荐' : '')+'</div>' +
@@ -607,7 +608,9 @@ function showSellSignalModal(code) {
       { type: 'hold', label: '继续持有', desc: '不操作，等待更高点', annualDiv: holdDiv }
     ];
     opts.sort(function(a, b) { return b.annualDiv - a.annualDiv; });
-    suggestType = opts[0].type;
+    // 股息年化 > 卖出收益 → 推荐持有；否则推荐股息最高的卖出方案
+    if (divRate > sellGain) suggestType = 'hold';
+    else suggestType = opts[0].type;
     optionsHtml = opts.map(function(o) {
       var divStr = o.annualDiv > 0 ? '年化股息收益约 ¥'+Math.round(o.annualDiv).toLocaleString() : '无股息';
       return '<div class="sell-opt" onclick="selectSellOpt(this)" data-type="'+o.type+'" data-code="'+code+'">' +
@@ -618,6 +621,21 @@ function showSellSignalModal(code) {
     }).join('');
   }
   var posColor = pos > 80 ? '#ef4444' : '#f59e0b';
+  // 收益对比：股息年化 vs 卖出一次性收益率
+  var divRate = dividendRate;
+  var sellGain = parseFloat(aProfit);
+  var verdict = '';
+  var verdictColor = '#94a3b8';
+  if (divRate > sellGain) {
+    verdict = '💡 持有吃股息更划算（股息年化 ' + divRate.toFixed(2) + '% > 卖出收益率 ' + sellGain.toFixed(1) + '%）';
+    verdictColor = '#22c55e';
+  } else if (divRate < sellGain) {
+    verdict = '💡 卖出更划算（卖出收益率 ' + sellGain.toFixed(1) + '% > 股息年化 ' + divRate.toFixed(2) + '%）';
+    verdictColor = '#ef4444';
+  } else {
+    verdict = '💡 两者收益相当（均为 ' + sellGain.toFixed(1) + '%）';
+    verdictColor = '#f59e0b';
+  }
   var html = '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">' +
     '<div class="modal" style="max-width:400px">' +
     '<div class="modal-title">'+title+'</div>' +
@@ -626,6 +644,7 @@ function showSellSignalModal(code) {
     '<div style="font-size:12px;color:#94a3b8">持仓：<b>'+h.shares+'股</b> @ ¥'+h.buyPrice+' → 现价 ¥'+price+'（'+aProfit+'%）</div>' +
     '<div style="font-size:12px;color:#94a3b8">52周位置：<b style="color:'+posColor+'">'+pos+'%</b></div>' +
     '</div>' +
+    '<div style="background:rgba(15,23,42,.8);border:1px solid #334155;border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;color:'+verdictColor+';line-height:1.5">' + verdict + '</div>' +
     '<div style="margin-bottom:14px">'+optionsHtml+'</div>' +
     '<div class="modal-actions"><button class="modal-cancel" onclick="closeModal()">取消</button></div>' +
     '</div></div>';
