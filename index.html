@@ -9,7 +9,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh;padding-bottom:64px}
-body{padding-bottom:80px}
+body{padding-bottom:calc(80px + env(safe-area-inset-bottom,0))}
 input,button{font-family:inherit}
 .header{background:linear-gradient(135deg,#1e3a5f 0%,#0f172a 100%);padding:18px 16px 14px;border-bottom:1px solid #1e293b;position:relative}
 .header h1{font-size:21px;font-weight:700;color:#fff}
@@ -82,7 +82,7 @@ input,button{font-family:inherit}
 .week52-fill{position:absolute;left:0;top:0;bottom:0;border-radius:6px;transition:width .3s}
 .week52-labels{display:flex;justify-content:space-between;font-size:10px;color:#475569;margin-top:4px}
 .week52-range{display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-top:2px}
-.add-btn{width:100%;padding:13px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;position:relative;z-index:99;margin-bottom:140px;box-shadow:0 4px 12px rgba(59,130,246,0.4)}
+.add-btn{width:100%;padding:13px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;position:relative;z-index:99;margin-bottom:20px;box-shadow:0 4px 12px rgba(59,130,246,0.4)}
 .add-btn:active{opacity:.85}
 /* 组合分析 */
 .summary-card{background:linear-gradient(135deg,#1e293b,#0f172a);border:1px solid #334155;border-radius:14px;padding:16px;margin-bottom:14px}
@@ -217,7 +217,7 @@ input,button{font-family:inherit}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading{display:inline-block;width:14px;height:14px;border:2px solid #60a5fa;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:4px}
 /* 底部返回主页 */
-.bottomnav{position:fixed;bottom:0;left:0;right:0;background:#1e293b;border-top:1px solid #334155;display:flex;z-index:200;box-shadow:0 -2px 8px rgba(0,0,0,0.3)}
+.bottomnav{position:fixed;bottom:0;left:0;right:0;background:#1e293b;border-top:1px solid #334155;display:flex;z-index:200;box-shadow:0 -2px 8px rgba(0,0,0,0.3);padding-bottom:env(safe-area-inset-bottom,0)}
 .bottomnav button{flex:1;padding:12px 0;background:none;border:none;color:#64748b;font-size:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
 .bottomnav button.active{color:#60a5fa}
 .bottomnav .home-btn{color:#60a5fa;font-weight:700}
