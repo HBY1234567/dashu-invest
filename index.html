@@ -742,29 +742,37 @@ function syncPracticeFromHoldings() {
   savePractice(list);
 }
 
-function showBuyConfirmModal(code) {
+function showBuyConfirmModal(code, isAdd) {
   var live = state.livePrices[code] || {};
   var price = live.price || 0;
   var s = state.selectedStock || STOCKS.find(function(x) { return x.code === code; }) || {};
+  // 检查是否已有持仓（加仓场景）
+  var existingHolding = isAdd ? (tradingState.holdings.find(function(h){return h.code===code;}) || null) : null;
   if (!price) { alert('获取价格失败'); return; }
   var maxByMoney = tradingState.balance / (price * (1 + COMMISSION_RATE));
   var maxShares = Math.floor(maxByMoney / BUY_UNIT) * BUY_UNIT;
   if (maxShares < BUY_UNIT) maxShares = 0;
+  var isAdding = !!existingHolding;
+  var modalTitle = isAdding ? '确认加仓' : '确认买入';
+  var defaultShares = isAdding ? (existingHolding.firstBuyShares || existingHolding.shares || BUY_UNIT) : '';
+  var holdingInfoHtml = isAdding
+    ? '<div style="font-size:12px;color:#94a3b8;margin-top:4px">当前持仓：<b>'+existingHolding.shares+'股</b> @ 均价¥'+existingHolding.buyPrice.toFixed(3)+'（首次买入 '+existingHolding.firstBuyShares+'股 @ ¥'+existingHolding.firstBuyPrice+'）</div>'
+    : '';
   var html = '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">' +
     '<div class="modal" style="max-width:380px">' +
-    '<div class="modal-title">确认买入</div>' +
+    '<div class="modal-title">'+modalTitle+'</div>' +
     '<div style="background:#1e293b;border-radius:10px;padding:14px;margin-bottom:12px">' +
     '<div style="font-size:15px;font-weight:700;margin-bottom:6px">'+escHtml(s.name||code)+'</div>' +
-    '<div style="font-size:12px;color:#94a3b8">现价：<b>¥'+price+'</b></div>' +
+    '<div style="font-size:12px;color:#94a3b8">现价：<b>¥'+price+'</b></div>' + holdingInfoHtml +
     '<div style="font-size:12px;color:#94a3b8">佣金：<b>万2.5</b>（最低5元）</div>' +
     '<div style="font-size:12px;color:#94a3b8">印花税：<b>千1</b>（买入免征）</div>' +
     '<div style="font-size:12px;color:#94a3b8">可用资金：<b>¥'+Math.round(tradingState.balance).toLocaleString()+'</b></div>' +
     '</div>' +
-    '<div class="modal-field"><label class="modal-label">买入数量（'+BUY_UNIT+'的整数倍）</label>' +
-    '<input class="modal-input" type="number" id="buy-confirm-shares" value="" min="'+BUY_UNIT+'" step="'+BUY_UNIT+'" placeholder="建议从 '+Math.min(maxShares, BUY_UNIT*10)+' 股起买"></div>' +
+    '<div class="modal-field"><label class="modal-label">'+(isAdding?'加仓数量':'买入数量')+'（'+BUY_UNIT+'的整数倍）</label>' +
+    '<input class="modal-input" type="number" id="buy-confirm-shares" value="'+defaultShares+'" min="'+BUY_UNIT+'" step="'+BUY_UNIT+'" placeholder="建议从 '+Math.min(maxShares, BUY_UNIT*10)+' 股起买"></div>' +
     '<div style="font-size:12px;color:#64748b;margin-bottom:14px">💡 最多可买 <b style="color:#60a5fa">'+(maxShares||0)+' 股</b>，约 ¥'+Math.round(maxShares*price+maxShares*price*COMMISSION_RATE).toLocaleString()+'</div>' +
     '<div class="modal-actions"><button class="modal-cancel" onclick="closeModal()">取消</button>' +
-    '<button class="modal-confirm" onclick="submitBuyConfirm(\''+escAttr(code)+'\')">确认买入</button></div>' +
+    '<button class="modal-confirm" onclick="submitBuyConfirm(\\\''+escAttr(code)+'\\\')">'+(isAdding?'确认加仓':'确认买入')+'</button></div>' +
     '</div></div>';
   var existing = document.querySelector('.modal-overlay');
   if (existing) existing.remove();
@@ -789,6 +797,7 @@ function submitBuyConfirm(code) {
     var totalCost = existing.shares * existing.buyPrice + shares * price;
     existing.shares = totalShares;
     existing.buyPrice = totalCost / totalShares;
+    existing.addCount = (existing.addCount || 0) + 1;
   } else {
     tradingState.holdings.push({
       code: code, name: s.name || code, industry: s.industry || '其他',
@@ -805,7 +814,7 @@ function submitBuyConfirm(code) {
   tradingState.history.push({
     date: dateYmdToday(), code: code, name: s.name || code,
     action: 'buy', shares: shares, price: price,
-    fee: cost - shares * price, note: '买入'
+    fee: cost - shares * price, note: existing ? '加仓' : '买入'
   });
   saveTradingState();
   syncPracticeFromHoldings();
