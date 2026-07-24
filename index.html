@@ -1508,15 +1508,22 @@ function renderStockCard(s,live){
 // ---- 组合分析 ----
 function renderPortfolio(){
   var c=$('#content');
-  var holdings=tradingState.holdings.length>0?tradingState.holdings:[];
-  var hasOldPractice=state.practice&&state.practice.length>0&&holdings.length===0;
-  if(holdings.length===0&&!hasOldPractice){
+  var holdings=tradingState.holdings;
+  var practice=state.practice||[];
+  // 合并 holdings + practice 去重展示：
+  // - holdings 优先（数据完整，含交易信号）
+  // - practice 中未在 holdings 的（如「优选」+加入实践表的股票）也会一并显示，便于行业分布与持仓列表对齐
+  var _seen={};
+  var mergedList=[];
+  holdings.forEach(function(h){_seen[h.code]=1;mergedList.push(Object.assign({_source:'holding'},h));});
+  practice.forEach(function(p){if(!_seen[p.code]){_seen[p.code]=1;mergedList.push(Object.assign({_source:'practice'},p));}});
+  if(mergedList.length===0){
     c.innerHTML='<div class="practice-empty"><div class="icon">📊</div><div class="title">模拟账户为空</div><div class="desc">去「查询」页面搜索股票，然后点击「买入」开始模拟交易</div></div>';
     return;
   }
   var totalMV=0,totalCost=0,totalBalance=tradingState.balance;
   var indMap={};
-  var displayItems=holdings.length>0?holdings:state.practice;
+  var displayItems=mergedList;
   displayItems.forEach(function(item){
     var live=state.livePrices[item.code]||{};
     var cur=live.price||item.buyPrice||0;
@@ -1581,7 +1588,7 @@ function renderPortfolio(){
     html+='</div>';
   }
   var filterInd=state.industryFilter;
-  var list=holdings.length>0?holdings:state.practice;
+  var list=mergedList;
   if(filterInd)list=list.filter(function(it){return(it.industry||'其他')===filterInd;});
   if(filterInd)html+='<div class="ind-filter-bar" id="filter-banner" style="padding:8px 10px;background:rgba(59,130,246,.15);border-radius:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;font-size:13px">'+
     '<span style="color:#93c5fd">🏢 筛选：'+escHtml(filterInd)+'（'+list.length+'只）</span>'+
@@ -1597,9 +1604,11 @@ function renderPortfolio(){
     var pos=live.week52Pos??null;
     var divRate=live.dividendYield||0;
     var gainColor=gain!=null?(parseFloat(gain)>=0?'#ef4444':'#22c55e'):'#94a3b8';
-    var addSig=holdings.length>0?calcAddSignal(item.code,cur):null;
-    var sellSig=holdings.length>0?calcSellSignal(pos):null;
-    var t1Blocked=holdings.length>0?!canSell(item.code):false;
+    // 只有真正在模拟账户里的持仓才计算买卖信号；仅在实践表的标的不触发加仓/止损/卖出提示
+    var inTrading=item._source==='holding';
+    var addSig=inTrading?calcAddSignal(item.code,cur):null;
+    var sellSig=inTrading?calcSellSignal(pos):null;
+    var t1Blocked=inTrading?!canSell(item.code):false;
     var sigs=[];
     if(holdings.length>0){
       if(addSig&&addSig.action==='add')sigs.push('<span class="trade-sig add" onclick="showAddSignalModal(\''+escAttr(item.code)+'\')">📉 '+addSig.label+'（点此操作）</span>');
