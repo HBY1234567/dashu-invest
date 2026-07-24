@@ -418,43 +418,6 @@ const INDUSTRY_RECS = [
 // 股息率种子数据：最近完整年度(2024)每股分红(含税)，单位元。
 // 来源=联网搜索+公开财报整理(2026-07)，部分为中值估算，可能需按最新年报校正。
 // 仅覆盖优选页股票；其余股票(含未列出的持仓)无数据→股息率显示"—"。
-var CUSTOM_DIV={};
-try{CUSTOM_DIV=JSON.parse(localStorage.getItem('dashu_custom_div')||'{}');}catch(e){}
-function getCustomDiv(code){return CUSTOM_DIV[code]||null;}
-function setCustomDiv(code,div){
-  if(div&&div>0){CUSTOM_DIV[code]=parseFloat(div);localStorage.setItem('dashu_custom_div',JSON.stringify(CUSTOM_DIV));}
-  else{delete CUSTOM_DIV[code];localStorage.setItem('dashu_custom_div',JSON.stringify(CUSTOM_DIV));}
-}
-function showDivSetupModal(code,name){
-  var curDiv=getCustomDiv(code)||'';
-  var live=state.livePrices[code]||{};
-  var price=live.price||null;
-  var html='<div class="modal-overlay" onclick="if(event.target===this)closeModal()">'+
-    '<div class="modal" style="max-width:360px">'+
-    '<div class="modal-title">📊 设置股息数据</div>'+
-    '<div style="color:#94a3b8;font-size:13px;margin-bottom:14px">'+escHtml(name)+'（'+code.replace(/^(sh|sz|bj)/i,'')+'）</div>'+
-    '<div class="modal-field"><label class="modal-label">年度每股分红（元/股）</label>'+
-    '<input class="modal-input" id="div-input" type="number" step="0.001" min="0" placeholder="例如：3.50" value="'+escAttr(curDiv)+"">'+
-    '</div>';
-  if(price){html+='<div style="background:#0f172a;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:#94a3b8">现价：¥'+price+' &nbsp;|&nbsp; 当前设置：<b style="color:#e2e8f0" id="div-preview">'+((curDiv&&price)?(curDiv/price*100).toFixed(2)+'%':'未设置')+'</b></div>';}
-  html+='<div style="font-size:12px;color:#64748b;margin-bottom:14px">填写该股最近一年的每股现金分红总额，系统将自动计算股息率。如不确定可百度搜索「股票名称+2024分红」或「股票名称+2025分红」。</div>';
-  html+='<div class="modal-actions"><button class="modal-cancel" onclick="closeModal()">取消</button>'+
-    '<button style="flex:1;padding:10px;background:#ef4444;border:none;border-radius:8px;color:#fff;font-size:14px;cursor:pointer" onclick="var d=document.getElementById(\'div-input\');if(d.value&&d.value>0){setCustomDiv(\''+escAttr(code)+'\',d.value);closeModal();refreshLivePrices();}else{alert(\'请输入有效的每股分红金额\');}">保存</button></div>'+
-    (curDiv?'<div style="text-align:center;margin-top:10px"><button onclick="setCustomDiv(\''+escAttr(code)+'\',null);closeModal();refreshLivePrices();" style="background:none;border:none;color:#64748b;font-size:12px;cursor:pointer;text-decoration:underline">清除已设置的股息</button></div>':'')+
-    '</div></div>';
-  var existing=document.querySelector('.modal-overlay');
-  if(existing)existing.remove();
-  var div=document.createElement('div');div.innerHTML=html;document.body.appendChild(div.firstChild);
-  var inp=document.getElementById('div-input');
-  if(inp&&price){
-    inp.addEventListener('input',function(){
-      var v=parseFloat(this.value);
-      var pv=document.getElementById('div-preview');
-      if(pv)pv.textContent=(v&&price)?(v/price*100).toFixed(2)+'%':'未设置';
-    });
-  }
-}
-
 const DIV_MAP = {
   'sh601318': {div:2.55},  // 中国平安 2024全年(中期0.93+末期1.62)
   'sh600036': {div:2.00},  // 招商银行
@@ -1153,11 +1116,6 @@ async function fetchStockDetail(code){
   var dividendYield=null;
   if(divInfo&&divInfo.div&&price){
     dividendYield=Math.round((divInfo.div/price*100)*10)/10;
-  } else {
-    var customDiv=getCustomDiv(code);
-    if(customDiv&&price){
-      dividendYield=Math.round((customDiv/price*100)*10)/10;
-    }
   }
   var stockEntry=STOCKS.find(function(s){return s.code===code;});
   var industry=stockEntry?stockEntry.industry:'';
@@ -1492,14 +1450,6 @@ function renderDetail(){
   } else {
     html+='<div class="week52"><div class="week52-title" style="color:#475569;font-size:13px;text-align:center;padding:10px">⚠️ 52周数据暂时不可用</div></div>';
   }
-  var divTag='';
-  if(s.dividendYield!=null){
-    var dcls=s.dividendYield>3?'#facc15':'#94a3b8';
-    divTag='<span style="font-size:13px;color:'+dcls+'">💰 股息率 <b>'+s.dividendYield.toFixed(2)+'%</b> '+(s.dividendYield>3?'🟡':'')+'</span>';
-  } else {
-    divTag='<span style="font-size:13px;color:#60a5fa;cursor:pointer;text-decoration:underline" onclick="showDivSetupModal(\''+escAttr(s.code)+'\',\''+escAttr(s.name)+'\')">💰 设置股息率</span>';
-  }
-  html+='<div style="margin-top:12px;padding:10px 12px;background:#0f172a;border-radius:8px;text-align:center">'+divTag+'</div>';
   html+='<button class="add-btn" onclick="openAddModal()" '+(inPractice?'style="background:#334155;color:#94a3b8" disabled':'')+'>'+(inPractice?'✅ 已在实践表':'➕ 加入实践表（记录买入价和数量）')+'</button>';
 
   if(s.price>0){
@@ -1662,7 +1612,6 @@ function renderPortfolio(){
     if(divRate>5)divHtml='<span class="div-tag good">🟢 股息率'+divRate.toFixed(2)+'% · 优质分红股</span>';
     else if(divRate>3)divHtml='<span class="div-tag normal">🟡 股息率'+divRate.toFixed(2)+'%</span>';
     else if(divRate>0)divHtml='<span class="div-tag low">股息率'+divRate.toFixed(2)+'%</span>';
-    else divHtml='<span style="font-size:11px;color:#60a5fa;cursor:pointer;text-decoration:underline" onclick="showDivSetupModal(\''+escAttr(item.code)+'\',\''+escAttr(item.name)+'\')">设置股息</span>';
     var livePriceStr=live.price?'¥'+live.price:'…';
     var livePE=live.pe!=null?live.pe.toFixed(2):null;
     var livePB=live.pb!=null?live.pb.toFixed(2):null;
@@ -1944,7 +1893,7 @@ function renderPick(){
           '<div class="pick-name">'+escHtml(d.name)+' <span style="font-size:11px;color:#64748b">'+escHtml((d.code||'').replace(/^(sh|sz|bj)/i,''))+'</span>'+
             (state.pickSort!=='ind'?'<span style="font-size:11px;color:#94a3b8;margin-left:6px">· '+escHtml(d.industry)+'</span>':'')+
           '</div>'+
-          '<div class="pick-meta">PE '+(d.pe!=null?d.pe.toFixed(2):'—')+(peOk?'✅':'⚠️')+' · PB '+(d.pb!=null?d.pb.toFixed(2):'—')+(pbOk?'✅':'⚠️')+' · 52周'+(d.week52Pos!=null?d.week52Pos+'%':'—')+(d.dividendYield!=null?' · 股息率'+(d.dividendYield>3?'🟡':' ')+d.dividendYield.toFixed(2)+'%':' · <span style="cursor:pointer;color:#60a5fa;text-decoration:underline" onclick="event.stopPropagation();showDivSetupModal(\''+escAttr(d.code)+'\',\''+escAttr(d.name)+'\')">设置股息</span>')+'</div>'+
+          '<div class="pick-meta">PE '+(d.pe!=null?d.pe.toFixed(2):'—')+(peOk?'✅':'⚠️')+' · PB '+(d.pb!=null?d.pb.toFixed(2):'—')+(pbOk?'✅':'⚠️')+' · 52周'+(d.week52Pos!=null?d.week52Pos+'%':'—')+(d.dividendYield!=null?' · 股息率'+(d.dividendYield>3?'🟡':' ')+d.dividendYield.toFixed(2)+'%':' 股息率—')+'</div>'+
           '<div class="pick-tags">'+
             '<span class="pick-tag '+tagCls+'">'+sig.icon+' '+sig.label+'</span>'+
             (sig.detail?'<div class="pick-detail '+tagCls+'-detail">'+escHtml(sig.detail)+'</div>':'')+
