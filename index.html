@@ -859,7 +859,7 @@ function showBuyConfirmModal(code, isAdd) {
   var posValue = totalAssets - tradingState.balance;
   var hs300 = state.market.hs300 || {};
   var targetPos = getTargetTotalPos(hs300.pe);
-  var idealPos = targetPos !== null ? targetPos : 0.70;
+  var idealPos = targetPos !== null ? (targetPos.min + targetPos.max) / 2 : 0.70;
   var idealAmt = totalAssets * idealPos;
   var remainingIdeal = Math.max(0, idealAmt - posValue);
   var maxByMoney = tradingState.balance / (price * (1 + COMMISSION_RATE));
@@ -1507,12 +1507,12 @@ function renderPortfolio(){
     var level=getTempLevel(hs300.pe);
     var targetPos=getTargetTotalPos(hs300.pe);
     var posPct=totalAssets>0?Math.round(totalMV/totalAssets*100):0;
-    var surplus=targetPos!==null?Math.max(0,(targetPos*totalAssets)-totalMV):null;
+    var surplus=targetPos!==null?Math.max(0,(targetPos.min*totalAssets)-totalMV):null;
     html+='<div class="thermo-card" style="cursor:pointer;margin-top:8px" onclick="switchTab(\'market\')">'+
       '<div style="display:flex;justify-content:space-between;align-items:center">'+
       '<div><div style="font-size:12px;color:#94a3b8">🌡 市场温度（沪深300）</div>'+
       '<div style="font-size:20px;font-weight:700;color:'+(level&&level.color)+';margin:2px 0">'+hs300.pe.toFixed(2)+'</div>'+
-      '<div style="font-size:12px;color:'+(level&&level.color)+'">'+(level&&level.label)+' · 建议总仓位 <b>'+(targetPos!==null?Math.round(targetPos*100):'—')+'%</b></div></div>'+
+      '<div style="font-size:12px;color:'+(level&&level.color)+'">'+(level&&level.label)+' · 建议总仓位 <b>'+(targetPos!==null?(targetPos.min*100)+'%~'+(targetPos.max*100)+'%':'—')+'</b></div></div>'+
       '<div style="text-align:right"><div style="font-size:12px;color:#94a3b8">当前仓位</div>'+
       '<div style="font-size:20px;font-weight:700;color:#60a5fa">'+posPct+'%</div>'+
       '<div style="font-size:11px;color:'+(surplus!==null&&surplus>0?'#94a3b8':'#ef4444')+'">'+(surplus!==null&&surplus>0?'还可加仓 ¥'+Math.round(surplus).toLocaleString():surplus!==null&&surplus<=0?'已超建议仓位':'—')+'</div></div></div>'+
@@ -1646,13 +1646,13 @@ async function refreshLivePrices(){
 }
 // ---- 市场温度 & 大数仓位辅助函数 ----
 function getTargetTotalPos(pe){
-  // 根据沪深300 PE 返回建议总仓位（0~1）
+  // 根据沪深300 PE 返回建议总仓位范围 {min, max}
   if(pe==null)return null;
-  if(pe<10)return 0.90;      // 极低估：80-100%
-  if(pe<12)return 0.70;      // 低估：60-80%
-  if(pe<14)return 0.50;      // 合理偏低：40-60%
-  if(pe<16)return 0.30;      // 合理：20-40%
-  return 0.10;               // 高估：<20%
+  if(pe<10)return {min:0.80,max:1.00};  // 极低估：80-100%
+  if(pe<12)return {min:0.60,max:0.80};  // 低估：60-80%
+  if(pe<14)return {min:0.40,max:0.60};  // 合理偏低：40-60%
+  if(pe<16)return {min:0.20,max:0.40};  // 合理：20-40%
+  return {min:0.00,max:0.20};            // 高估：<20%
 }
 function getTempLevel(pe){
   if(pe==null)return null;
