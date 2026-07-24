@@ -522,9 +522,8 @@ function showAddSignalModal(code) {
   var h = getHolding(code);
   var live = state.livePrices[code] || {};
   var price = live.price || 0;
-  if (!h || !price) return;
+  if (!h || !price) { alert('获取数据失败，请稍后再试'); return; }
   var sig = calcAddSignal(code, price);
-  if (!sig || sig.action !== 'add') return;
   var suggestShares = h.firstBuyShares;
   var estCost = calcCost(suggestShares, price);
   var today = dateYmdToday();
@@ -533,13 +532,15 @@ function showAddSignalModal(code) {
   });
   var disabled = boughtToday ? 'disabled style="opacity:0.4"' : '';
   var t1Note = boughtToday ? '<div style="color:#f59e0b;font-size:12px;margin-bottom:10px">⚠️ 今日已买入，需T+1后才能加仓</div>' : '';
+  var sigLabel = sig && sig.action === 'add' ? sig.label : '手动加仓';
+  var sigDesc = sig && sig.action === 'add' ? '（首次买入价跌'+(sig.count*10)+'%）' : '';
   var html = '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">' +
     '<div class="modal" style="max-width:380px">' +
-    '<div class="modal-title">📉 加仓提示</div>' +
+    '<div class="modal-title">📈 确认加仓</div>' +
     '<div style="background:#1e293b;border-radius:10px;padding:14px;margin-bottom:12px">' +
     '<div style="font-size:15px;font-weight:700;margin-bottom:8px">'+escHtml(h.name)+'</div>' +
     '<div style="font-size:12px;color:#94a3b8;margin-bottom:4px">首次买入：<b>'+h.firstBuyShares+'股 @ ¥'+h.firstBuyPrice+'</b></div>' +
-    '<div style="font-size:12px;color:#94a3b8">现价：<b>¥'+price+'</b>（首次买入价跌'+(sig.count*10)+'%）</div>' +
+    '<div style="font-size:12px;color:#94a3b8">现价：<b>¥'+price+'</b> '+sigDesc+'</div>' +
     '</div>' +
     '<div style="background:#0f172a;border-radius:10px;padding:14px;margin-bottom:14px">' +
     '<div style="font-size:12px;color:#64748b;margin-bottom:6px">💡 系统建议：加 <b style="color:#60a5fa">'+suggestShares+' 股</b>（与首次购买股数相同）</div>' +
@@ -589,9 +590,7 @@ function showSellSignalModal(code) {
   var live = state.livePrices[code] || {};
   var price = live.price || 0;
   var pos = live.week52Pos;
-  if (!h || !price) return;
-  var signal = calcSellSignal(pos);
-  if (!signal) return;
+  if (!h || !price) { alert('获取数据失败，请稍后再试'); return; }
   var dividendRate = live.dividendYield || 0;
   var aProfit = ((price - h.buyPrice) / h.buyPrice * 100).toFixed(1);
   var title = signal === 'clear' ? '🔴 清仓信号' : '🟠 卖一半信号';
@@ -657,15 +656,20 @@ function showSellSignalModal(code) {
     verdict = '💡 两者收益相当（均为 ' + sellGain.toFixed(1) + '%）';
     verdictColor = '#f59e0b';
   }
+  var title = signal ? title : '📤 确认卖出';
+  var optionsHtml = signal ? optionsHtml : '<div class="sell-opt" onclick="selectSellOpt(this)" data-type="all" data-code="'+code+'">' +
+    '<div class="sell-opt-title">全部卖出 💡推荐</div>' +
+    '<div style="font-size:12px;color:#94a3b8">套现 ¥' + Math.round(proceedAll).toLocaleString() + '，收益 ' + aProfit + '%</div>' +
+    '</div>';
   var html = '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">' +
     '<div class="modal" style="max-width:400px">' +
     '<div class="modal-title">'+title+'</div>' +
     '<div style="background:#1e293b;border-radius:10px;padding:14px;margin-bottom:12px">' +
     '<div style="font-size:15px;font-weight:700;margin-bottom:6px">'+escHtml(h.name)+'</div>' +
     '<div style="font-size:12px;color:#94a3b8">持仓：<b>'+h.shares+'股</b> @ ¥'+h.buyPrice+' → 现价 ¥'+price+'（'+aProfit+'%）</div>' +
-    '<div style="font-size:12px;color:#94a3b8">52周位置：<b style="color:'+posColor+'">'+pos+'%</b></div>' +
+    '<div style="font-size:12px;color:#94a3b8">52周位置：<b style="color:'+posColor+'">'+(pos!=null?pos+'%':'—')+'</b></div>' +
     '</div>' +
-    '<div style="background:rgba(15,23,42,.8);border:1px solid #334155;border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;color:'+verdictColor+';line-height:1.5">' + verdict + '</div>' +
+    (signal ? '<div style="background:rgba(15,23,42,.8);border:1px solid #334155;border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;color:'+verdictColor+';line-height:1.5">' + verdict + '</div>' : '') +
     '<div style="margin-bottom:14px">'+optionsHtml+'</div>' +
     '<div class="modal-actions"><button class="modal-cancel" onclick="closeModal()">取消</button></div>' +
     '</div></div>';
@@ -1465,7 +1469,32 @@ function renderPortfolio(){
     if(livePB)tagHtml+='<span class="practice-tag">PB '+livePB+'</span>';
     if(divHtml)tagHtml+=divHtml;
     tagHtml+='</div>';
-    html+=tagHtml+signalHtml;
+    // 简化进度条：显示当前价、买入价、52周区间
+    var priceBar='';
+    if(live.price&&live.high52&&live.low52){
+      var curP=live.price;
+      var lowP=live.low52;
+      var highP=live.high52;
+      var range=highP-lowP;
+      var curPos=range>0?Math.max(0,Math.min(100,((curP-lowP)/range*100))):50;
+      var buyPos=buyPrice&&range>0?Math.max(0,Math.min(100,((buyPrice-lowP)/range*100))):null;
+      priceBar='<div style="margin-top:10px;padding:10px;background:#1e293b;border-radius:8px">';
+      priceBar+='<div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-bottom:6px">';
+      priceBar+='<span>¥'+lowP+'</span><span>52周区间</span><span>¥'+highP+'</span></div>';
+      priceBar+='<div style="position:relative;height:8px;background:#334155;border-radius:4px">';
+      // 30%和70%标记线
+      priceBar+='<div style="position:absolute;left:30%;top:0;bottom:0;width:1px;background:rgba(34,197,94,0.4)"></div>';
+      priceBar+='<div style="position:absolute;left:70%;top:0;bottom:0;width:1px;background:rgba(239,68,68,0.4)"></div>';
+      // 买入价标记
+      if(buyPos!==null)priceBar+='<div style="position:absolute;left:'+buyPos+'%;top:-4px;bottom:-4px;width:2px;background:#f59e0b;border-radius:1px" title="买入价¥'+buyPrice+'"></div>';
+      // 当前价标记
+      priceBar+='<div style="position:absolute;left:'+curPos+'%;top:-6px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:10px solid #60a5fa" title="现价¥'+curP+'"></div>';
+      priceBar+='</div>';
+      priceBar+='<div style="display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;margin-top:4px">';
+      priceBar+='<span style="color:#22c55e">➕加仓</span><span style="color:#f59e0b">买入</span><span style="color:#ef4444">➖减仓</span>';
+      priceBar+='</div></div>';
+    }
+    html+=tagHtml+priceBar+signalHtml;
     // 始终显示操作按钮（不再被 holdings.length>0 卡住，老实践表数据也能用）
     var isInTrading=tradingState.holdings.some(function(h){return h.code===item.code;});
     var buyLabel=isInTrading?'加仓':'买入';
