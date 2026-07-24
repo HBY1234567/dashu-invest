@@ -1516,7 +1516,8 @@ function renderPortfolio(){
       '<div style="text-align:right"><div style="font-size:12px;color:#94a3b8">当前仓位</div>'+
       '<div style="font-size:20px;font-weight:700;color:#60a5fa">'+posPct+'%</div>'+
       '<div style="font-size:11px;color:'+(surplus!==null&&surplus>0?'#94a3b8':'#ef4444')+'">'+(surplus!==null&&surplus>0?'还可加仓 ¥'+Math.round(surplus).toLocaleString():surplus!==null&&surplus<=0?'已超建议仓位':'—')+'</div></div></div>'+
-      '<div style="font-size:11px;color:#475569;margin-top:4px">📌 点击查看详情（温度页）→</div></div>';
+      '<div style="font-size:11px;color:#475569;margin-top:4px">📌 点击查看详情（温度页）→</div>'+
+      '<div style="font-size:10px;color:#334155;margin-top:2px">* 建议仓位基于市场经验估算，仅供参考，不构成投资建议</div></div>';
   } else {
     html+='<div class="thermo-card" style="cursor:pointer;margin-top:8px" onclick="switchTab(\'market\')">'+
       '<div style="text-align:center;padding:6px 0"><span class="loading"></span> 正在获取市场温度… <span style="font-size:11px;color:#475569">（点击跳转温度页）</span></div></div>';
@@ -1573,27 +1574,34 @@ function renderPortfolio(){
       '<div class="practice-grid"><div class="practice-grid-item"><div class="practice-grid-label">持仓均价</div><div class="practice-grid-value">'+(buyPrice?'¥'+buyPrice.toFixed(2):'—')+'</div></div>'+
       '<div class="practice-grid-item"><div class="practice-grid-label">持股股数</div><div class="practice-grid-value">'+(shares?shares+'股':'—')+'</div></div>'+
       '<div class="practice-grid-item"><div class="practice-grid-label">现价</div><div class="practice-grid-value">'+livePriceStr+'</div></div></div>';
-    if(gain!=null)html+='<div class="practice-gain" style="color:'+gainColor+'">'+(parseFloat(gain)>=0?'+':'')+gain+'% '+(gainAmtI!=null?'('+(parseFloat(gain)>=0?'+':'¥')+parseInt(gainAmtI).toLocaleString()+')':'')+'</div>';
+    // 总盈亏（较买入价） + 当日盈亏（较昨收），合并一行
+    var combinedGainHtml='';
+    if(gain!=null||dayGainAmt!==null){
+      var dayGainAmt2=null,dayGainPct2=null;
+      if(live.chg!=null&&shares>0){
+        dayGainPct2=live.chg;
+        dayGainAmt2=(live.chg/100)*cur*shares;
+      }
+      var totalLabel=gain!=null?'总盈亏':'—';
+      var totalVal='';
+      if(gain!=null)totalVal='<span style="font-weight:700;color:'+gainColor+'">'+(parseFloat(gain)>=0?'+':'')+gain+'% '+(gainAmtI!=null?'('+(parseFloat(gain)>=0?'+':'¥')+Math.round(gainAmtI).toLocaleString()+')':'')+'</span>';
+      var dayLabel=dayGainAmt2!==null?'<span style="font-size:10px;color:#64748b"> · </span><span style="font-size:11px;color:#64748b">当日</span>':'';
+      var dayVal='';
+      if(dayGainAmt2!==null){
+        var dc=dayGainAmt2>=0?'#ef4444':'#22c55e';
+        dayVal='<span style="font-weight:600;color:'+dc+';font-size:12px">'+(dayGainAmt2>=0?'+':'¥')+Math.round(dayGainAmt2).toLocaleString()+'（'+(dayGainPct2>=0?'+':'')+dayGainPct2.toFixed(2)+'%）</span>';
+      }
+      combinedGainHtml='<div style="margin-top:4px;padding:5px 10px;background:#1e293b;border-radius:6px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">'+
+        '<span style="font-size:12px;color:#94a3b8">'+totalLabel+'</span>'+totalVal+dayLabel+dayVal+'</div>';
+    }
     var tagHtml='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">';
     tagHtml+='<span class="practice-tag">52周 '+(pos!=null?pos+'%':'—')+'</span>';
-    if(livePE)tagHtml+='<span class="practice-tag">PE '+livePE+'</span>';
+    if(livePE)tagHtml+='<span class="practice-tag">PE '+livePE+((livePE&&parseFloat(livePE)<13.4)?' ↓偏低':' '+(livePE&&parseFloat(livePE)>18?'↑偏高':''))+'</span>';
     if(livePB)tagHtml+='<span class="practice-tag">PB '+livePB+'</span>';
+    if(live.roe)tagHtml+='<span class="practice-tag">ROE '+live.roe.toFixed(1)+'%</span>';
     if(divHtml)tagHtml+=divHtml;
     tagHtml+='</div>';
-    // 当日盈亏（较昨收）
-    var dayGainAmt=null,dayGainPct=null,dayGainColor='#94a3b8';
-    if(live.chg!=null&&shares>0){
-      dayGainPct=live.chg;
-      dayGainAmt=(live.chg/100)*cur*shares;
-      dayGainColor=dayGainAmt>=0?'#ef4444':'#22c55e';
-    }
-    var dayGainHtml='';
-    if(dayGainAmt!==null){
-      dayGainHtml='<div style="margin-top:6px;padding:6px 10px;background:#1e293b;border-radius:6px;display:flex;justify-content:space-between;align-items:center">'+
-        '<span style="font-size:12px;color:#94a3b8">📅 今日盈亏</span>'+
-        '<span style="font-size:13px;font-weight:700;color:'+dayGainColor+'">'+(dayGainAmt>=0?'+':'¥')+Math.round(dayGainAmt).toLocaleString()+'（'+(dayGainPct>=0?'+':'')+dayGainPct.toFixed(2)+'%）</span></div>';
-    }
-    html+=tagHtml+dayGainHtml+signalHtml;
+    html+=combinedGainHtml+tagHtml+signalHtml;
     // 始终显示操作按钮（不再被 holdings.length>0 卡住，老实践表数据也能用）
     var isInTrading=tradingState.holdings.some(function(h){return h.code===item.code;});
     var buyLabel=isInTrading?'加仓':'买入';
