@@ -1559,7 +1559,7 @@ function renderPortfolio(){
       if(sellSig==='half')sigs.push('<span class="trade-sig sell-half" onclick="showSellSignalModal(\''+escAttr(item.code)+'\')">🟠 52周>'+pos+'% 可卖一半（点此操作）</span>');
       else if(sellSig==='clear')sigs.push('<span class="trade-sig sell-clear" onclick="showSellSignalModal(\''+escAttr(item.code)+'\')">🔴 52周>'+pos+'% 建议清仓（点此操作）</span>');
     }
-    var signalHtml=sigs.length>0?'<div class="trade-signal-row">'+sigs.join('</div><div class="trade-signal-row">')+'</div>':'';
+    var signalHtml=sigs.length>0?'<div style="font-size:11px;color:#94a3b8;margin-top:8px;margin-bottom:4px">📋 持仓建议</div><div class="trade-signal-row">'+sigs.join('</div><div class="trade-signal-row">')+'</div>':'';
     var divHtml='';
     if(divRate>5)divHtml='<span class="div-tag good">🟢 股息率'+divRate.toFixed(2)+'% · 优质分红股</span>';
     else if(divRate>3)divHtml='<span class="div-tag normal">🟡 股息率'+divRate.toFixed(2)+'%</span>';
