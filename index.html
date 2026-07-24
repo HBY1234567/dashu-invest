@@ -505,14 +505,18 @@ function calcSellSignal(pos) {
 function calcAddSignal(code, livePrice) {
   var h = getHolding(code);
   if (!h || !h.firstBuyPrice || !livePrice) return null;
-  var rates = [0.10, 0.20, 0.27];
-  var labels = ['第1次加仓', '第2次加仓', '建议止损'];
   var count = h.addCount || 0;
-  if (count >= 2) return { action: 'stop', label: '🔴 建议止损' };
-  for (var i = count; i < 2; i++) {
-    if (livePrice <= h.firstBuyPrice * (1 - rates[i])) {
-      return { action: 'add', level: i + 1, label: '📉 ' + labels[i], count: i + 1 };
-    }
+  // 建议止损：价格跌破首次买入价的73%（跌27%），与加仓次数无关
+  if (livePrice <= h.firstBuyPrice * 0.73) {
+    return { action: 'stop', label: '🔴 建议止损', count: count };
+  }
+  // 第2次加仓：已加仓1次且价格跌至首次买入价的80%（跌20%）
+  if (count >= 1 && livePrice <= h.firstBuyPrice * 0.80) {
+    return { action: 'add', level: 2, label: '📉 第2次加仓', count: 2 };
+  }
+  // 第1次加仓：未加仓且价格跌至首次买入价的90%（跌10%）
+  if (count === 0 && livePrice <= h.firstBuyPrice * 0.90) {
+    return { action: 'add', level: 1, label: '📉 第1次加仓', count: 1 };
   }
   return null;
 }
@@ -1178,19 +1182,22 @@ function renderHomeTop(){
       actTxt+=parts.join('，');
       html+='<div class="home-action" onclick="switchTab(\'portfolio\')"><div class="ic">🔔</div><div class="txt">'+actTxt+'</div></div>';
     }
-    // 信号分布
-    var sigCnt={buy:0,hold:0,sell:0};
+    // 信号分布（持仓股票：加仓/止损信号；非持仓股票：不显示）
+    var sigCnt={add1:0,add2:0,stop:0};
     list.forEach(function(item){
-      var pos=(state.livePrices[item.code]||{}).week52Pos??null;
-      var sig=calcSignal({week52Pos:pos});
-      sigCnt[sig.cls]++;
+      var live=state.livePrices[item.code]||{};
+      var price=live.price||0;
+      var sig=calcAddSignal(item.code,price);
+      if(sig&&sig.action==='add'&&sig.level===1)sigCnt.add1++;
+      else if(sig&&sig.action==='add'&&sig.level===2)sigCnt.add2++;
+      else if(sig&&sig.action==='stop')sigCnt.stop++;
     });
-    var totalSig=sigCnt.buy+sigCnt.hold+sigCnt.sell;
+    var totalSig=sigCnt.add1+sigCnt.add2+sigCnt.stop;
     if(totalSig>0){
       html+='<div class="sig-dist">';
-      if(sigCnt.buy>0)html+='<span class="sig-badge buy" onclick="showSignalFilter(\'buy\')">🟢 建议买入 '+sigCnt.buy+'</span>';
-      if(sigCnt.hold>0)html+='<span class="sig-badge hold" onclick="showSignalFilter(\'hold\')">🟡 持有 '+sigCnt.hold+'</span>';
-      if(sigCnt.sell>0)html+='<span class="sig-badge sell" onclick="showSignalFilter(\'sell\')">🔴 建议卖出 '+sigCnt.sell+'</span>';
+      if(sigCnt.add1>0)html+='<span class="sig-badge" style="background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.3)" onclick="switchTab(\'portfolio\')">📉 第1次加仓 '+sigCnt.add1+'</span>';
+      if(sigCnt.add2>0)html+='<span class="sig-badge" style="background:rgba(251,146,60,.15);color:#fb923c;border:1px solid rgba(251,146,60,.3)" onclick="switchTab(\'portfolio\')">📉 第2次加仓 '+sigCnt.add2+'</span>';
+      if(sigCnt.stop>0)html+='<span class="sig-badge" style="background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)" onclick="switchTab(\'portfolio\')">🔴 建议止损 '+sigCnt.stop+'</span>';
       html+='</div>';
     }
   }
