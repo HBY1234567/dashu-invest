@@ -444,6 +444,8 @@ const DIV_MAP = {
   'sh601919': {div:1.03},  // 中远海控
   'sh600350': {div:0.42},  // 山东高速(10派4.2)
   'sh600519': {div:51.5},  // 贵州茅台(中期23.882+末期27.624)
+  'sz000858': {div:5.745}, // 五粮液(中期2.576+末期3.169)
+  'sh600809': {div:6.06},  // 山西汾酒(中期2.46+末期3.6)
 };
 const GBK_DECODER = new TextDecoder('gbk');
 const ALL_INDUSTRIES=[...new Set(STOCKS.map(function(s){return s.industry;}))].filter(function(i){return i&&i!=='ETF';}).sort();
