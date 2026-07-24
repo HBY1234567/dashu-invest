@@ -414,6 +414,37 @@ const INDUSTRY_RECS = [
   {code:'sh603986',name:'兆易创新',industry:'芯片'},{code:'sz002475',name:'立讯精密',industry:'电子'},
   {code:'sh601111',name:'中国国航',industry:'航空'},
 ];
+
+// 股息率种子数据：最近完整年度(2024)每股分红(含税)，单位元。
+// 来源=联网搜索+公开财报整理(2026-07)，部分为中值估算，可能需按最新年报校正。
+// 仅覆盖优选页股票；其余股票(含未列出的持仓)无数据→股息率显示"—"。
+const DIV_MAP = {
+  'sh601318': {div:2.55},  // 中国平安 2024全年(中期0.93+末期1.62)
+  'sh600036': {div:2.00},  // 招商银行
+  'sh600030': {div:0.56},  // 中信证券(中期0.28+末期约0.28,估算)
+  'sh601857': {div:0.47},  // 中国石油(全年估算)
+  'sh601088': {div:2.26},  // 中国神华
+  'sh600900': {div:0.943}, // 长江电力
+  'sh600887': {div:1.22},  // 伊利股份
+  'sz000333': {div:3.00},  // 美的集团(估算)
+  'sh600276': {div:0.102}, // 恒瑞医药
+  'sz000002': {div:0},     // 万科A(2024亏损,基本不分红)
+  'sz002594': {div:3.974}, // 比亚迪(10派39.74)
+  'sh600019': {div:0.16},  // 宝钢股份(估算)
+  'sh601668': {div:0.2715},// 中国建筑(10派2.715)
+  'sh600941': {div:5.00},  // 中国移动(全年估算,港元)
+  'sh600588': {div:0.40},  // 用友网络(10派4)
+  'sh601012': {div:0.17},  // 隆基绿能(10派1.7)
+  'sh601899': {div:0.28},  // 紫金矿业(10派2.8)
+  'sh600309': {div:0.73},  // 万华化学(10派7.3)
+  'sh603986': {div:0.34},  // 兆易创新(10派3.4)
+  'sz002475': {div:0.20},  // 立讯精密(估算)
+  'sh601111': {div:0},     // 中国国航(2024微利,基本不分红)
+  'sh600018': {div:0.145}, // 上港集团(10派1.45)
+  'sh601919': {div:1.03},  // 中远海控
+  'sh600350': {div:0.42},  // 山东高速(10派4.2)
+  'sh600519': {div:51.5},  // 贵州茅台(中期23.882+末期27.624)
+};
 const GBK_DECODER = new TextDecoder('gbk');
 const ALL_INDUSTRIES=[...new Set(STOCKS.map(function(s){return s.industry;}))].filter(function(i){return i&&i!=='ETF';}).sort();
 const PE_THRESHOLD = 20;   // PE≤20 低估
@@ -1079,7 +1110,11 @@ async function fetchStockDetail(code){
   }
   var roe=null;
   if(pe&&pb&&pe>0)roe=Math.round((pb/pe)*1000)/10;
-  var dividendYield=parseFloat(f[47])||null;
+  var divInfo=DIV_MAP[code];
+  var dividendYield=null;
+  if(divInfo&&divInfo.div&&price){
+    dividendYield=Math.round((divInfo.div/price*100)*10)/10;
+  }
   var stockEntry=STOCKS.find(function(s){return s.code===code;});
   var industry=stockEntry?stockEntry.industry:'';
   return{
