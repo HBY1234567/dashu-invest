@@ -858,8 +858,7 @@ function showBuyConfirmModal(code, isAdd) {
   var posValue = totalAssets - tradingState.balance;
   var hs300 = state.market.hs300 || {};
   var targetPos = getTargetTotalPos(hs300.pe);
-  var idealPos = targetPos !== null ? (targetPos.min + targetPos.max) / 2 : 0.70;
-  var idealAmt = totalAssets * idealPos;
+  var idealAmt = targetPos !== null ? totalAssets * targetPos.max : totalAssets * 0.80;
   var remainingIdeal = Math.max(0, idealAmt - posValue);
   var maxByMoney = tradingState.balance / (price * (1 + COMMISSION_RATE));
   var maxBySinglePos = totalAssets > 0 ? (totalAssets * SINGLE_POS_CAP) / price : 0;
