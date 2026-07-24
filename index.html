@@ -1530,7 +1530,8 @@ function renderPortfolio(){
     indKeys.forEach(function(k){
       var pct=totalMV>0?indMap[k].mv/totalMV*100:0;
       var over=pct>SINGLE_INDUSTRY_CAP;
-      html+='<div class="ind-bar-row"><div class="ind-bar-head"><span class="ind-bar-name">'+escHtml(k)+'（'+indMap[k].count+'只）</span><span class="ind-bar-pct">'+pct.toFixed(1)+'%</span></div>'+
+      var isActive=filterInd===k;
+      html+='<div class="ind-bar-row '+(isActive?'active':'')+'" onclick="filterIndustry(\''+escAttr(k)+'\')"><div class="ind-bar-head"><span class="ind-bar-name">'+escHtml(k)+'（'+indMap[k].count+'只）</span><span class="ind-bar-pct">'+pct.toFixed(1)+'%</span></div>'+
         '<div class="ind-bar-track"><div class="ind-bar-fill '+(over?'over':'ok')+'" style="width:'+Math.min(pct,100)+'%"></div></div></div>';
     });
     html+='</div>';
@@ -1538,6 +1539,9 @@ function renderPortfolio(){
   var filterInd=state.industryFilter;
   var list=holdings.length>0?holdings:state.practice;
   if(filterInd)list=list.filter(function(it){return(it.industry||'其他')===filterInd;});
+  if(filterInd)html+='<div class="ind-filter-bar" style="padding:8px 10px;background:rgba(59,130,246,.15);border-radius:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;font-size:13px">'+
+    '<span style="color:#93c5fd">🏢 筛选：'+escHtml(filterInd)+'（'+list.length+'只）</span>'+
+    '<span style="color:#94a3b8;cursor:pointer;font-size:12px" onclick="clearIndustryFilter()">✕ 清除</span></div>';
   html+='<div class="holding-list">';
   list.forEach(function(item){
     var live=state.livePrices[item.code]||{};
