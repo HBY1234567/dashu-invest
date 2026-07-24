@@ -854,8 +854,19 @@ function showBuyConfirmModal(code, isAdd) {
   // 检查是否已有持仓（加仓场景）
   var existingHolding = isAdd ? (tradingState.holdings.find(function(h){return h.code===code;}) || null) : null;
   if (!price) { alert('获取价格失败'); return; }
+  // 计算三层仓位限制，取最小值
+  var totalAssets = (tradingState.holdings.reduce(function(s,h){var lp=(state.livePrices[h.code]||{}).price||h.buyPrice||0;return s+lp*h.shares;},0))+tradingState.balance;
+  var posValue = totalAssets - tradingState.balance;
+  var hs300 = state.market.hs300 || {};
+  var targetPos = getTargetTotalPos(hs300.pe);
+  var idealPos = targetPos !== null ? targetPos : 0.70;
+  var idealAmt = totalAssets * idealPos;
+  var remainingIdeal = Math.max(0, idealAmt - posValue);
   var maxByMoney = tradingState.balance / (price * (1 + COMMISSION_RATE));
-  var maxShares = Math.floor(maxByMoney / BUY_UNIT) * BUY_UNIT;
+  var maxBySinglePos = totalAssets > 0 ? (totalAssets * SINGLE_POS_CAP) / price : 0;
+  var maxByTotalPos = idealAmt > posValue ? (idealAmt - posValue) / (price * (1 + COMMISSION_RATE)) : 0;
+  var rawMax = Math.min(maxByMoney, maxBySinglePos, maxByTotalPos);
+  var maxShares = Math.floor(rawMax / BUY_UNIT) * BUY_UNIT;
   if (maxShares < BUY_UNIT) maxShares = 0;
   var isAdding = !!existingHolding;
   var modalTitle = isAdding ? '确认加仓' : '确认买入';
@@ -1490,6 +1501,26 @@ function renderPortfolio(){
   html+='<div class="account-row"><span class="account-label">🏦 总资产</span><span class="account-value">¥'+Math.round(totalAssets).toLocaleString()+'</span></div>';
   html+='<div class="account-row"><span class="account-label">📈 浮动盈亏</span><span class="account-value '+gainCls+'">'+gainSign+Math.round(gainAmt).toLocaleString()+' 元（'+gainSign+gainPct.toFixed(2)+'%）</span></div>';
   html+='</div>';
+  // 温度概览卡片
+  var hs300=state.market.hs300||{};
+  if(hs300.pe!=null){
+    var level=getTempLevel(hs300.pe);
+    var targetPos=getTargetTotalPos(hs300.pe);
+    var posPct=totalAssets>0?Math.round(totalMV/totalAssets*100):0;
+    var surplus=targetPos!==null?Math.max(0,(targetPos*totalAssets)-totalMV):null;
+    html+='<div class="thermo-card" style="cursor:pointer;margin-top:8px" onclick="switchTab(\'market\')">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center">'+
+      '<div><div style="font-size:12px;color:#94a3b8">🌡 市场温度（沪深300）</div>'+
+      '<div style="font-size:20px;font-weight:700;color:'+(level&&level.color)+';margin:2px 0">'+hs300.pe.toFixed(2)+'</div>'+
+      '<div style="font-size:12px;color:'+(level&&level.color)+'">'+(level&&level.label)+' · 建议总仓位 <b>'+(targetPos!==null?Math.round(targetPos*100):'—')+'%</b></div></div>'+
+      '<div style="text-align:right"><div style="font-size:12px;color:#94a3b8">当前仓位</div>'+
+      '<div style="font-size:20px;font-weight:700;color:#60a5fa">'+posPct+'%</div>'+
+      '<div style="font-size:11px;color:'+(surplus!==null&&surplus>0?'#94a3b8':'#ef4444')+'">'+(surplus!==null&&surplus>0?'还可加仓 ¥'+Math.round(surplus).toLocaleString():surplus!==null&&surplus<=0?'已超建议仓位':'—')+'</div></div></div>'+
+      '<div style="font-size:11px;color:#475569;margin-top:4px">📌 点击查看详情（温度页）→</div></div>';
+  } else {
+    html+='<div class="thermo-card" style="cursor:pointer;margin-top:8px" onclick="switchTab(\'market\')">'+
+      '<div style="text-align:center;padding:6px 0"><span class="loading"></span> 正在获取市场温度… <span style="font-size:11px;color:#475569">（点击跳转温度页）</span></div></div>';
+  }
   if(Object.keys(indMap).length>0){
     var overList=[];
     for(var k in indMap){var pct=totalMV>0?indMap[k].mv/totalMV*100:0;if(pct>SINGLE_INDUSTRY_CAP)overList.push(k+' '+pct.toFixed(0)+'%');}
@@ -1549,42 +1580,20 @@ function renderPortfolio(){
     if(livePB)tagHtml+='<span class="practice-tag">PB '+livePB+'</span>';
     if(divHtml)tagHtml+=divHtml;
     tagHtml+='</div>';
-    // 简化进度条：只显示关键标记，无文字
-    var priceBar='';
-    if(live.price&&live.high52&&live.low52){
-      var curP=live.price;
-      var lowP=live.low52;
-      var highP=live.high52;
-      var range=highP-lowP;
-      var curPos=range>0?Math.max(0,Math.min(100,((curP-lowP)/range*100))):50;
-      var buyPos=buyPrice&&range>0?Math.max(0,Math.min(100,((buyPrice-lowP)/range*100))):null;
-      // 计算加仓位置（52周区间的30%处对应的价格）
-      var addAtP=lowP+(range*0.3);
-      var addAtPos=30;
-      // 计算减仓位置（52周区间的70%处对应的价格）
-      var sellAtP=lowP+(range*0.7);
-      var sellAtPos=70;
-      priceBar='<div style="margin-top:10px;padding:10px 8px;background:#1e293b;border-radius:8px">';
-      priceBar+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
-      priceBar+='<span style="font-size:10px;color:#64748b">¥'+lowP+'</span>';
-      priceBar+='<span style="font-size:10px;color:#475569">52周</span>';
-      priceBar+='<span style="font-size:10px;color:#64748b">¥'+highP+'</span></div>';
-      priceBar+='<div style="position:relative;height:10px;background:#0f172a;border-radius:5px">';
-      // 30%加仓线
-      priceBar+='<div style="position:absolute;left:30%;top:0;bottom:0;width:2px;background:#22c55e;opacity:0.7"></div>';
-      // 70%减仓线
-      priceBar+='<div style="position:absolute;left:70%;top:0;bottom:0;width:2px;background:#ef4444;opacity:0.7"></div>';
-      // 买入价标记
-      if(buyPos!==null&&buyPos>=0&&buyPos<=100)priceBar+='<div style="position:absolute;left:'+buyPos+'%;top:-3px;width:3px;height:16px;background:#f59e0b;border-radius:2px"></div>';
-      // 当前价标记（最显眼）
-      priceBar+='<div style="position:absolute;left:'+curPos+'%;top:-4px;width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:12px solid #60a5fa"></div>';
-      priceBar+='</div>';
-      priceBar+='<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">';
-      priceBar+='<span style="font-size:9px;color:#22c55e">加:'+addAtP.toFixed(2)+'</span>';
-      priceBar+='<span style="font-size:9px;color:#60a5fa">¥'+curP+'</span>';
-      priceBar+='<span style="font-size:9px;color:#ef4444">卖:'+sellAtP.toFixed(2)+'</span></div></div>';
+    // 当日盈亏（较昨收）
+    var dayGainAmt=null,dayGainPct=null,dayGainColor='#94a3b8';
+    if(live.chg!=null&&shares>0){
+      dayGainPct=live.chg;
+      dayGainAmt=(live.chg/100)*cur*shares;
+      dayGainColor=dayGainAmt>=0?'#ef4444':'#22c55e';
     }
-    html+=tagHtml+priceBar+signalHtml;
+    var dayGainHtml='';
+    if(dayGainAmt!==null){
+      dayGainHtml='<div style="margin-top:6px;padding:6px 10px;background:#1e293b;border-radius:6px;display:flex;justify-content:space-between;align-items:center">'+
+        '<span style="font-size:12px;color:#94a3b8">📅 今日盈亏</span>'+
+        '<span style="font-size:13px;font-weight:700;color:'+dayGainColor+'">'+(dayGainAmt>=0?'+':'¥')+Math.round(dayGainAmt).toLocaleString()+'（'+(dayGainPct>=0?'+':'')+dayGainPct.toFixed(2)+'%）</span></div>';
+    }
+    html+=tagHtml+dayGainHtml+signalHtml;
     // 始终显示操作按钮（不再被 holdings.length>0 卡住，老实践表数据也能用）
     var isInTrading=tradingState.holdings.some(function(h){return h.code===item.code;});
     var buyLabel=isInTrading?'加仓':'买入';
@@ -1626,6 +1635,24 @@ async function refreshLivePrices(){
     return fetchStockDetail(item.code).then(function(d){if(!d.error)state.livePrices[item.code]=d;}).catch(function(){});
   });
   await Promise.all(promises);render();
+}
+// ---- 市场温度 & 大数仓位辅助函数 ----
+function getTargetTotalPos(pe){
+  // 根据沪深300 PE 返回建议总仓位（0~1）
+  if(pe==null)return null;
+  if(pe<10)return 0.90;      // 极低估：80-100%
+  if(pe<12)return 0.70;      // 低估：60-80%
+  if(pe<14)return 0.50;      // 合理偏低：40-60%
+  if(pe<16)return 0.30;      // 合理：20-40%
+  return 0.10;               // 高估：<20%
+}
+function getTempLevel(pe){
+  if(pe==null)return null;
+  if(pe<10)return {label:'极低估',color:'#22c55e'};
+  if(pe<12)return {label:'低估',color:'#22c55e'};
+  if(pe<14)return {label:'合理偏低',color:'#f59e0b'};
+  if(pe<16)return {label:'合理',color:'#f59e0b'};
+  return {label:'高估',color:'#ef4444'};
 }
 // ---- 市场温度 ----
 async function fetchMarketTemp(){
