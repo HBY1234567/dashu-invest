@@ -1507,7 +1507,7 @@ function renderPortfolio(){
     var level=getTempLevel(hs300.pe);
     var targetPos=getTargetTotalPos(hs300.pe);
     var posPct=totalAssets>0?Math.round(totalMV/totalAssets*100):0;
-    var surplus=targetPos!==null?Math.max(0,(targetPos.min*totalAssets)-totalMV):null;
+    var surplus=targetPos!==null?Math.max(0,(targetPos.max*totalAssets)-totalMV):null;
     html+='<div class="thermo-card" style="cursor:pointer;margin-top:8px" onclick="switchTab(\'market\')">'+
       '<div style="display:flex;justify-content:space-between;align-items:center">'+
       '<div><div style="font-size:12px;color:#94a3b8">🌡 市场温度（沪深300）</div>'+
@@ -1515,7 +1515,7 @@ function renderPortfolio(){
       '<div style="font-size:12px;color:'+(level&&level.color)+'">'+(level&&level.label)+' · 建议总仓位 <b>'+(targetPos!==null?(targetPos.min*100)+'%~'+(targetPos.max*100)+'%':'—')+'</b></div></div>'+
       '<div style="text-align:right"><div style="font-size:12px;color:#94a3b8">当前仓位</div>'+
       '<div style="font-size:20px;font-weight:700;color:#60a5fa">'+posPct+'%</div>'+
-      '<div style="font-size:11px;color:'+(surplus!==null&&surplus>0?'#94a3b8':'#ef4444')+'">'+(surplus!==null&&surplus>0?'还可加仓 ¥'+Math.round(surplus).toLocaleString():surplus!==null&&surplus<=0?'已超建议仓位':'—')+'</div></div></div>'+
+      '<div style="font-size:11px;color:'+(surplus!==null&&surplus>0?'#94a3b8':'#ef4444')+'">'+(surplus!==null&&surplus>0?'仓位未满，还可加仓 ¥'+Math.round(surplus).toLocaleString():surplus!==null&&surplus<=0?'已超建议仓位':'—')+'</div></div></div>'+
       '<div style="font-size:11px;color:#475569;margin-top:4px">📌 点击查看详情（温度页）→</div>'+
       '<div style="font-size:10px;color:#334155;margin-top:2px">* 建议仓位基于市场经验估算，仅供参考，不构成投资建议</div></div>';
   } else {
