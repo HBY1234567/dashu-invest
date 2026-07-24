@@ -1233,6 +1233,7 @@ function switchTab(tab){
   if(tab==='portfolio'){
     if(!tradingState.initialized) loadTradingState();
     state.practice=loadPractice();refreshLivePrices();
+    if(!state.market.hs300)fetchMarketTemp();
   }
 if(tab==='pick'){if(Object.keys(state.pickLive).length===0)loadPickList();}
   render();
@@ -1646,6 +1647,7 @@ async function refreshLivePrices(){
   var promises=state.practice.map(function(item){
     return fetchStockDetail(item.code).then(function(d){if(!d.error)state.livePrices[item.code]=d;}).catch(function(){});
   });
+  promises.push(fetchMarketTemp());
   await Promise.all(promises);render();
 }
 // ---- 市场温度 & 大数仓位辅助函数 ----
@@ -1665,6 +1667,11 @@ function getTempLevel(pe){
   if(pe<14)return {label:'合理偏低',color:'#f59e0b'};
   if(pe<16)return {label:'合理',color:'#f59e0b'};
   return {label:'高估',color:'#ef4444'};
+}
+// ---- 市场温度（仅获取HS300 PE，供持仓页温度卡片使用） ----
+async function fetchMarketTemp(){
+  var d=await fetchStockDetail('sh000300');
+  if(!d.error)state.market.hs300=d;
 }
 // ---- 优选清单（方向一：行业内排名选股，阈值做参考标注） ----
 async function loadPickList(){
