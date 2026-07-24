@@ -839,7 +839,7 @@ function showBuyConfirmModal(code, isAdd) {
     '<input class="modal-input" type="number" id="buy-confirm-shares" value="'+defaultShares+'" min="'+BUY_UNIT+'" step="'+BUY_UNIT+'" placeholder="建议从 '+Math.min(maxShares, BUY_UNIT*10)+' 股起买"></div>' +
     '<div style="font-size:12px;color:#64748b;margin-bottom:14px">💡 最多可买 <b style="color:#60a5fa">'+(maxShares||0)+' 股</b>，约 ¥'+Math.round(maxShares*price+maxShares*price*COMMISSION_RATE).toLocaleString()+'</div>' +
     '<div class="modal-actions"><button class="modal-cancel" onclick="closeModal()">取消</button>' +
-    '<button class="modal-confirm" onclick="submitBuyConfirm(\\\''+escAttr(code)+'\\\')">'+(isAdding?'确认加仓':'确认买入')+'</button></div>' +
+    '<button class="modal-confirm" onclick="submitBuyConfirm(\''+escAttr(code)+'\')">'+(isAdding?'确认加仓':'确认买入')+'</button></div>' +
     '</div></div>';
   var existing = document.querySelector('.modal-overlay');
   if (existing) existing.remove();
