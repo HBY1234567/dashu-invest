@@ -1178,6 +1178,17 @@ function renderHomeTop(){
         totalDayGain+=live.chg/100*prevClose*item.shares;
       }
     });
+    // 加上今天卖出的部分盈亏（从昨收到卖出价的涨跌）
+    var todayYmd=dateYmdToday();
+    (tradingState.history||[]).forEach(function(h){
+      if(h.date===todayYmd&&h.action==='sell'&&h.shares>0){
+        var live=state.livePrices[h.code]||{};
+        if(live.chg!=null){
+          var prevClose=live.prevClose||(h.price/(1+live.chg/100));
+          totalDayGain+=live.chg/100*prevClose*h.shares;
+        }
+      }
+    });
     var dayGainSign=totalDayGain>=0?'+':'';
     var dayGainCls=totalDayGain>=0?'gain':'loss';
     html+='<div class="home-portfolio">'+
@@ -1509,6 +1520,17 @@ function renderPortfolio(){
     if(live.chg!=null&&item.shares>0){
       var prevClose=live.prevClose||(cur/(1+live.chg/100));
       totalDayGain+=live.chg/100*prevClose*item.shares;
+    }
+  });
+  // 加上今天卖出的部分盈亏（从昨收到卖出价的涨跌）
+  var todayYmd=dateYmdToday();
+  (tradingState.history||[]).forEach(function(h){
+    if(h.date===todayYmd&&h.action==='sell'&&h.shares>0){
+      var live=state.livePrices[h.code]||{};
+      if(live.chg!=null){
+        var prevClose=live.prevClose||(h.price/(1+live.chg/100));
+        totalDayGain+=live.chg/100*prevClose*h.shares;
+      }
     }
   });
   var dayGainSign=totalDayGain>=0?'+':'';
