@@ -1512,7 +1512,7 @@ function renderPortfolio(){
       '<div style="font-size:11px;color:#94a3b8">当前仓位</div>'+
       '<div style="font-size:22px;font-weight:700;color:#60a5fa">'+posPct+'%</div>'+
       '<div style="font-size:11px;color:'+(surplus!==null&&surplus>0?'#22c55e':'#ef4444')+';font-weight:600">'+(surplus!==null&&surplus>0?'未满':surplus!==null&&surplus<=0?'已超':'—')+'</div>'+
-      '<div style="font-size:10px;color:#64748b">'+(surplus!==null&&surplus>0?'可加 ¥'+Math.round(surplus/10000).toLocaleString()+'万':surplus!==null&&surplus<=0?'超出 ¥'+Math.round(-surplus/10000)+'万':'—')+'</div></div></div></div>'+
+      '<div style="font-size:10px;color:#64748b">'+(surplus!==null&&surplus>0?'可加 ¥'+Math.round(surplus).toLocaleString()+'元':surplus!==null&&surplus<=0?'超出 ¥'+Math.round(-surplus).toLocaleString()+'元':'—')+'</div></div></div></div>'+
       '<div style="margin-top:8px"><div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b;margin-bottom:3px"><span>极低估</span><span>高估</span></div>'+
       '<div style="height:6px;background:linear-gradient(90deg,#22c55e,#f59e0b,#ef4444);border-radius:3px;position:relative">'+
       '<div style="position:absolute;top:-4px;width:8px;height:14px;background:#fff;border-radius:2px;transform:translateX(-50%);left:'+scalePct+'"></div></div></div>'+
