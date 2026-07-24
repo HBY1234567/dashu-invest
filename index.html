@@ -1167,15 +1167,20 @@ function renderHomeTop(){
     var gainCls=gainAmt>=0?'gain':'loss';
     var gainSign=gainAmt>=0?'+':'';
     var actHalf=0,actFull=0;
+    var totalDayGain=0;
     list.forEach(function(item){
       var live=state.livePrices[item.code]||{};
       var cur=live.price||item.buyPrice||0;
       var gain=item.buyPrice?((cur-item.buyPrice)/item.buyPrice*100):null;
       if(gain!=null){if(gain>=100)actFull++;else if(gain>=50)actHalf++;}
+      if(live.chg!=null&&item.shares>0)totalDayGain+=live.chg/100*cur*item.shares;
     });
+    var dayGainSign=totalDayGain>=0?'+':'';
+    var dayGainCls=totalDayGain>=0?'gain':'loss';
     html+='<div class="home-portfolio">'+
       '<div class="home-pf-row"><span class="l">组合总市值</span><span class="v">¥'+(totalMV/10000).toFixed(2)+'万</span></div>'+
-      '<div class="home-pf-row"><span class="l">浮动盈亏（较买入价）</span><span class="v '+gainCls+'">'+gainSign+gainPct.toFixed(2)+'% （'+gainSign+(gainAmt/10000).toFixed(2)+'万）</span></div>'+
+      '<div class="home-pf-row"><span class="l">总盈亏</span><span class="v '+gainCls+'">'+gainSign+gainPct.toFixed(2)+'% （'+gainSign+(gainAmt/10000).toFixed(2)+'万）</span></div>'+
+      '<div class="home-pf-row"><span class="l">当日盈亏</span><span class="v '+dayGainCls+'">'+dayGainSign+Math.round(totalDayGain).toLocaleString()+' 元</span></div>'+
     '</div>';
     if(actHalf>0||actFull>0){
       var actTxt='需关注操作：';
@@ -1494,10 +1499,19 @@ function renderPortfolio(){
   var gainPct=totalCost>0?(gainAmt/totalCost*100):0;
   var gainCls=gainAmt>=0?'gain':'loss';
   var gainSign=gainAmt>=0?'+':'';
+  var totalDayGain=0;
+  displayItems.forEach(function(item){
+    var live=state.livePrices[item.code]||{};
+    var cur=live.price||item.buyPrice||0;
+    if(live.chg!=null&&item.shares>0)totalDayGain+=live.chg/100*cur*item.shares;
+  });
+  var dayGainSign=totalDayGain>=0?'+':'';
+  var dayGainCls=totalDayGain>=0?'gain':'loss';
   var html='<div class="account-card">';
   html+='<div class="account-row"><span class="account-label">💰 可用资金</span><span class="account-value">¥'+Math.round(totalBalance).toLocaleString()+'</span></div>';
   html+='<div class="account-row"><span class="account-label">🏦 总资产</span><span class="account-value">¥'+Math.round(totalAssets).toLocaleString()+'</span></div>';
-  html+='<div class="account-row"><span class="account-label">📈 浮动盈亏</span><span class="account-value '+gainCls+'">'+gainSign+Math.round(gainAmt).toLocaleString()+' 元（'+gainSign+gainPct.toFixed(2)+'%）</span></div>';
+  html+='<div class="account-row"><span class="account-label">📈 总盈亏</span><span class="account-value '+gainCls+'">'+gainSign+Math.round(gainAmt).toLocaleString()+' 元（'+gainSign+gainPct.toFixed(2)+'%）</span></div>';
+  html+='<div class="account-row"><span class="account-label">📅 当日盈亏</span><span class="account-value '+dayGainCls+'">'+dayGainSign+Math.round(totalDayGain).toLocaleString()+' 元</span></div>';
   html+='</div>';
   // 温度概览卡片
   var hs300=state.market.hs300||{};
