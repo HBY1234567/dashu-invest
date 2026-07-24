@@ -680,6 +680,15 @@ function showSellSignalModal(code) {
     '<div class="sell-opt-title">全部卖出 💡推荐</div>' +
     '<div style="font-size:12px;color:#94a3b8">套现 ¥' + Math.round(proceedAll).toLocaleString() + '，收益 ' + aProfit + '%</div>' +
     '</div>';
+  // 自由输入卖出股数（不论有没有信号都加）
+  var customSellHtml = '<div class="sell-opt" data-type="custom" data-code="'+code+'" style="cursor:default">' +
+    '<div class="sell-opt-title">✏️ 自由输入卖出股数</div>' +
+    '<div style="display:flex;align-items:center;gap:8px;margin-top:8px">' +
+    '<input type="number" id="sell-custom-shares" min="'+BUY_UNIT+'" step="'+BUY_UNIT+'" max="'+h.shares+'" placeholder="买入'+BUY_UNIT+'的倍数，最多 '+h.shares+' 股" style="flex:1;padding:8px;border:1px solid #334155;border-radius:6px;background:#0f172a;color:#fff;font-size:14px">' +
+    '<button style="padding:8px 16px;background:#ef4444;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer" onclick="selectSellOpt(this.parentElement.parentElement)">卖出</button>' +
+    '</div>' +
+    '<div style="font-size:11px;color:#64748b;margin-top:4px">当前持仓 '+h.shares+' 股，可输 100/200/... 最多 '+h.shares+' 股</div>' +
+    '</div>';
   var html = '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">' +
     '<div class="modal" style="max-width:400px">' +
     '<div class="modal-title">'+title+'</div>' +
@@ -690,6 +699,7 @@ function showSellSignalModal(code) {
     '</div>' +
     (signal ? '<div style="background:rgba(15,23,42,.8);border:1px solid #334155;border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;color:'+verdictColor+';line-height:1.5">' + verdict + '</div>' : '') +
     '<div style="margin-bottom:14px">'+optionsHtml+'</div>' +
+    '<div style="margin-bottom:14px">'+customSellHtml+'</div>' +
     '<div class="modal-actions"><button class="modal-cancel" onclick="closeModal()">取消</button></div>' +
     '</div></div>';
   var existing = document.querySelector('.modal-overlay');
@@ -704,6 +714,12 @@ function selectSellOpt(el) {
   if (type === 'all') doSellAll(code);
   else if (type === 'half') doSellHalf(code);
   else if (type === 'third') doSellThird(code);
+  else if (type === 'custom') {
+    var inp = el.querySelector('input');
+    var shares = parseInt(inp && inp.value) || 0;
+    if (shares < BUY_UNIT || shares % BUY_UNIT !== 0) { alert('卖出数量必须是 ' + BUY_UNIT + ' 的整数倍'); return; }
+    doSellCustom(code, shares);
+  }
 }
 
 function doSellAll(code) {
@@ -762,6 +778,28 @@ function doSellThird(code) {
     action: 'sell', shares: sellShares, price: price,
     fee: sellShares * price * (COMMISSION_RATE + STAMP_TAX_RATE),
     note: '留1/3底仓，套现'
+  });
+  saveTradingState();
+  syncPracticeFromHoldings();
+  render();
+}
+
+function doSellCustom(code, shares) {
+  var h = getHolding(code);
+  var live = state.livePrices[code] || {};
+  var price = live.price || 0;
+  if (!h || !price) return;
+  if (!canSell(code)) { alert('T+1限制：今日买入的股票不能当天卖出'); return; }
+  if (shares <= 0 || shares > h.shares) { alert('卖出数量必须在 1~'+h.shares+' 股之间'); return; }
+  if (shares === h.shares) { doSellAll(code); return; }
+  var proceed = calcSellProceed(shares, price);
+  h.shares -= shares;
+  tradingState.balance += proceed;
+  tradingState.history.push({
+    date: dateYmdToday(), code: code, name: h.name,
+    action: 'sell', shares: shares, price: price,
+    fee: shares * price * (COMMISSION_RATE + STAMP_TAX_RATE),
+    note: '手动卖出 ' + shares + '股'
   });
   saveTradingState();
   syncPracticeFromHoldings();
