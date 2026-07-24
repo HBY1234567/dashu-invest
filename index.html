@@ -1079,13 +1079,14 @@ async function fetchStockDetail(code){
   }
   var roe=null;
   if(pe&&pb&&pe>0)roe=Math.round((pb/pe)*1000)/10;
+  var dividendYield=parseFloat(f[47])||null;
   var stockEntry=STOCKS.find(function(s){return s.code===code;});
   var industry=stockEntry?stockEntry.industry:'';
   return{
     code:code,name:f[1]||code,price:price,industry:industry,
     pe:(pe!==null&&pe>0)?Math.round(pe*100)/100:null,
     pb:(pb!==null&&pb>0)?Math.round(pb*100)/100:null,
-    high52:high52,low52:low52,week52Pos:week52Pos,chg:chg,roe:roe,prevClose:prevClose,
+    high52:high52,low52:low52,week52Pos:week52Pos,chg:chg,roe:roe,prevClose:prevClose,dividendYield:dividendYield,
     isExcludedBoard:isExcludedBoard,isETFlike:isETFlike,
   };
 }
@@ -1594,7 +1595,7 @@ function renderPortfolio(){
     tagHtml+='<span class="practice-tag">52周 '+(pos!=null?pos+'%':'—')+'</span>';
     if(livePE)tagHtml+='<span class="practice-tag">PE '+livePE+((livePE&&parseFloat(livePE)<13.4)?' ↓偏低':' '+(livePE&&parseFloat(livePE)>18?'↑偏高':''))+'</span>';
     if(livePB)tagHtml+='<span class="practice-tag">PB '+livePB+'</span>';
-    if(live.roe)tagHtml+='<span class="practice-tag">ROE '+live.roe.toFixed(1)+'%</span>';
+    if(live.roe){var roeHint=live.roe>=15?'✅优秀':live.roe>=10?'🟡良好':live.roe>=5?'⚠️一般':'❌偏低';tagHtml+='<span class="practice-tag">ROE '+live.roe.toFixed(1)+'% '+roeHint+'</span>';}
     if(divHtml)tagHtml+=divHtml;
     tagHtml+='</div>';
     html+=combinedGainHtml+tagHtml+signalHtml;
@@ -1855,7 +1856,7 @@ function renderPick(){
           '<div class="pick-name">'+escHtml(d.name)+' <span style="font-size:11px;color:#64748b">'+escHtml((d.code||'').replace(/^(sh|sz|bj)/i,''))+'</span>'+
             (state.pickSort!=='ind'?'<span style="font-size:11px;color:#94a3b8;margin-left:6px">· '+escHtml(d.industry)+'</span>':'')+
           '</div>'+
-          '<div class="pick-meta">PE '+(d.pe!=null?d.pe.toFixed(2):'—')+(peOk?'✅':'⚠️')+' · PB '+(d.pb!=null?d.pb.toFixed(2):'—')+(pbOk?'✅':'⚠️')+' · 52周'+(d.week52Pos!=null?d.week52Pos+'%':'—')+'</div>'+
+          '<div class="pick-meta">PE '+(d.pe!=null?d.pe.toFixed(2):'—')+(peOk?'✅':'⚠️')+' · PB '+(d.pb!=null?d.pb.toFixed(2):'—')+(pbOk?'✅':'⚠️')+' · 52周'+(d.week52Pos!=null?d.week52Pos+'%':'—')+(d.dividendYield!=null?' · 股息率'+(d.dividendYield>3?'🟡':' ')+d.dividendYield.toFixed(2)+'%':' 股息率—')+'</div>'+
           '<div class="pick-tags">'+
             '<span class="pick-tag '+tagCls+'">'+sig.icon+' '+sig.label+'</span>'+
             (sig.detail?'<div class="pick-detail '+tagCls+'-detail">'+escHtml(sig.detail)+'</div>':'')+
