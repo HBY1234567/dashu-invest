@@ -590,10 +590,30 @@ function showSellSignalModal(code) {
   var live = state.livePrices[code] || {};
   var price = live.price || 0;
   var pos = live.week52Pos;
-  if (!h || !price) { alert('获取数据失败，请稍后再试'); return; }
+  if (!h) { alert('未找到持仓记录'); return; }
+  if (!price) {
+    var html = '<div class="modal-overlay"><div class="modal" style="max-width:320px;text-align:center">' +
+      '<div class="modal-title">⏳ 正在获取价格…</div>' +
+      '<div style="color:#94a3b8;font-size:13px;margin:20px 0">请稍等，价格加载中</div>' +
+      '<button class="modal-cancel" onclick="closeModal()">关闭</button></div></div>';
+    var existing = document.querySelector('.modal-overlay');
+    if (existing) existing.remove();
+    document.body.insertAdjacentHTML('beforeend', html);
+    fetchStockDetail(code).then(function(d) {
+      if (!d.error) state.livePrices[code] = d;
+      closeModal();
+      showSellSignalModal(code);
+    }).catch(function() {
+      closeModal();
+      alert('获取价格失败，请稍后重试');
+    });
+    return;
+  }
   var dividendRate = live.dividendYield || 0;
   var aProfit = ((price - h.buyPrice) / h.buyPrice * 100).toFixed(1);
-  var title = signal === 'clear' ? '🔴 清仓信号' : '🟠 卖一半信号';
+  var proceedAll = calcSellProceed(h.shares, price);
+  var signal = calcSellSignal(pos);
+  var title = signal === 'clear' ? '🔴 清仓信号' : (signal === 'half' ? '🟠 卖一半信号' : '📤 确认卖出');
   var optionsHtml = '';
   var suggestType = '';
   if (signal === 'half') {
@@ -617,7 +637,6 @@ function showSellSignalModal(code) {
     }).join('');
   } else {
     var thirdShares = Math.floor(h.shares / 3);
-    var proceedAll = calcSellProceed(h.shares, price);
     var proceedThird = calcSellProceed(thirdShares, price);
     var keep2Shares = h.shares - thirdShares;
     var thirdDiv = keep2Shares * price * dividendRate / 100;
@@ -765,6 +784,29 @@ function syncPracticeFromHoldings() {
     else list.push(entry);
   });
   savePractice(list);
+}
+
+function showPriceLoadingModal(code, isAdd) {
+  var s = state.selectedStock || STOCKS.find(function(x) { return x.code === code; }) || {};
+  var existingHolding = isAdd ? (tradingState.holdings.find(function(h){return h.code===code;}) || null) : null;
+  var isAdding = !!existingHolding;
+  var html = '<div class="modal-overlay"><div class="modal" style="max-width:320px;text-align:center">' +
+    '<div class="modal-title">⏳ 正在获取价格…</div>' +
+    '<div style="color:#94a3b8;font-size:13px;margin:20px 0">请稍等，价格加载中</div>' +
+    '<button class="modal-cancel" onclick="closeModal()">关闭</button>' +
+    '</div></div>';
+  var existing = document.querySelector('.modal-overlay');
+  if (existing) existing.remove();
+  document.body.insertAdjacentHTML('beforeend', html);
+  // 触发价格刷新
+  fetchStockDetail(code).then(function(d) {
+    if (!d.error) state.livePrices[code] = d;
+    closeModal();
+    showBuyConfirmModal(code, isAdd);
+  }).catch(function() {
+    closeModal();
+    alert('获取价格失败，请稍后重试');
+  });
 }
 
 function showBuyConfirmModal(code, isAdd) {
@@ -1469,7 +1511,7 @@ function renderPortfolio(){
     if(livePB)tagHtml+='<span class="practice-tag">PB '+livePB+'</span>';
     if(divHtml)tagHtml+=divHtml;
     tagHtml+='</div>';
-    // 简化进度条：显示当前价、买入价、52周区间
+    // 简化进度条：只显示关键标记，无文字
     var priceBar='';
     if(live.price&&live.high52&&live.low52){
       var curP=live.price;
@@ -1478,21 +1520,31 @@ function renderPortfolio(){
       var range=highP-lowP;
       var curPos=range>0?Math.max(0,Math.min(100,((curP-lowP)/range*100))):50;
       var buyPos=buyPrice&&range>0?Math.max(0,Math.min(100,((buyPrice-lowP)/range*100))):null;
-      priceBar='<div style="margin-top:10px;padding:10px;background:#1e293b;border-radius:8px">';
-      priceBar+='<div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-bottom:6px">';
-      priceBar+='<span>¥'+lowP+'</span><span>52周区间</span><span>¥'+highP+'</span></div>';
-      priceBar+='<div style="position:relative;height:8px;background:#334155;border-radius:4px">';
-      // 30%和70%标记线
-      priceBar+='<div style="position:absolute;left:30%;top:0;bottom:0;width:1px;background:rgba(34,197,94,0.4)"></div>';
-      priceBar+='<div style="position:absolute;left:70%;top:0;bottom:0;width:1px;background:rgba(239,68,68,0.4)"></div>';
+      // 计算加仓位置（52周区间的30%处对应的价格）
+      var addAtP=lowP+(range*0.3);
+      var addAtPos=30;
+      // 计算减仓位置（52周区间的70%处对应的价格）
+      var sellAtP=lowP+(range*0.7);
+      var sellAtPos=70;
+      priceBar='<div style="margin-top:10px;padding:10px 8px;background:#1e293b;border-radius:8px">';
+      priceBar+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
+      priceBar+='<span style="font-size:10px;color:#64748b">¥'+lowP+'</span>';
+      priceBar+='<span style="font-size:10px;color:#475569">52周</span>';
+      priceBar+='<span style="font-size:10px;color:#64748b">¥'+highP+'</span></div>';
+      priceBar+='<div style="position:relative;height:10px;background:#0f172a;border-radius:5px">';
+      // 30%加仓线
+      priceBar+='<div style="position:absolute;left:30%;top:0;bottom:0;width:2px;background:#22c55e;opacity:0.7"></div>';
+      // 70%减仓线
+      priceBar+='<div style="position:absolute;left:70%;top:0;bottom:0;width:2px;background:#ef4444;opacity:0.7"></div>';
       // 买入价标记
-      if(buyPos!==null)priceBar+='<div style="position:absolute;left:'+buyPos+'%;top:-4px;bottom:-4px;width:2px;background:#f59e0b;border-radius:1px" title="买入价¥'+buyPrice+'"></div>';
-      // 当前价标记
-      priceBar+='<div style="position:absolute;left:'+curPos+'%;top:-6px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:10px solid #60a5fa" title="现价¥'+curP+'"></div>';
+      if(buyPos!==null&&buyPos>=0&&buyPos<=100)priceBar+='<div style="position:absolute;left:'+buyPos+'%;top:-3px;width:3px;height:16px;background:#f59e0b;border-radius:2px"></div>';
+      // 当前价标记（最显眼）
+      priceBar+='<div style="position:absolute;left:'+curPos+'%;top:-4px;width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:12px solid #60a5fa"></div>';
       priceBar+='</div>';
-      priceBar+='<div style="display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;margin-top:4px">';
-      priceBar+='<span style="color:#22c55e">➕加仓</span><span style="color:#f59e0b">买入</span><span style="color:#ef4444">➖减仓</span>';
-      priceBar+='</div></div>';
+      priceBar+='<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">';
+      priceBar+='<span style="font-size:9px;color:#22c55e">加:'+addAtP.toFixed(2)+'</span>';
+      priceBar+='<span style="font-size:9px;color:#60a5fa">¥'+curP+'</span>';
+      priceBar+='<span style="font-size:9px;color:#ef4444">卖:'+sellAtP.toFixed(2)+'</span></div></div>';
     }
     html+=tagHtml+priceBar+signalHtml;
     // 始终显示操作按钮（不再被 holdings.length>0 卡住，老实践表数据也能用）
