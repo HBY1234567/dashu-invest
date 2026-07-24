@@ -1171,8 +1171,8 @@ function renderHomeTop(){
     var gainSign=gainAmt>=0?'+':'';
     var actHalf=0,actFull=0;
     html+='<div class="home-portfolio">'+
-      '<div class="home-pf-row"><span class="l">组合总市值</span><span class="v">¥'+(totalMV/10000).toFixed(2)+'万</span></div>'+
-      '<div class="home-pf-row"><span class="l">总盈亏</span><span class="v '+gainCls+'">'+gainSign+gainPct.toFixed(2)+'% （'+gainSign+(gainAmt/10000).toFixed(2)+'万）</span></div>'+
+      '<div class="home-pf-row"><span class="l">组合总市值</span><span class="v">¥'+Math.round(totalMV).toLocaleString()+'元</span></div>'+
+      '<div class="home-pf-row"><span class="l">总盈亏</span><span class="v '+gainCls+'">'+gainSign+Math.abs(gainAmt).toLocaleString()+'元（'+gainSign+gainPct.toFixed(2)+'%）</span></div>'+
     '</div>';
     if(actHalf>0||actFull>0){
       var actTxt='需关注操作：';
@@ -1832,7 +1832,7 @@ function renderPick(){
       var p=picks[i];var d=p.stock;
       if(state.pickSort==='ind' && p.industry!==curInd){
         curInd=p.industry;
-        var heldMark=heldInds[curInd]?'<span style="font-size:12px;color:#93c5fd;margin-left:8px">🔵</span>':'';
+        var heldMark=heldInds[curInd]?'<span style="font-size:12px;color:#93c5fd;margin-left:8px">本行业已持有</span>':'';
         html+='<div class="sec-title">🏭 '+escHtml(curInd)+heldMark+'</div>';
         lastHeld=-1;
       }
