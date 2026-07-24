@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>进度条设计演示 v3</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0f1e;
+    color: #e2e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+    padding: 16px;
+    min-height: 100vh;
+  }
+  h1 { text-align: center; font-size: 15px; color: #64748b; margin-bottom: 20px; font-weight: 400; }
+  .demo-card {
+    background: #111827;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+
+  /* ===== 顶部：股票名 + 芯片一行 ===== */
+  .top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .stock-name { font-size: 15px; font-weight: 600; color: #f1f5f9; }
+  .chip-wrap { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+  .chip { background: #1e293b; color: #94a3b8; font-size: 11px; padding: 3px 8px; border-radius: 6px; }
+  .chip .v { color: #e2e8f0; }
+
+  /* ===== 盈亏行：涨跌幅 + 持股 ===== */
+  .gain-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .gain-pct { font-size: 26px; font-weight: 700; }
+  .gain-pct.up { color: #ef4444; }
+  .gain-pct.down { color: #22c55e; }
+  .gain-pct.flat { color: #94a3b8; }
+  .gain-info { font-size: 12px; color: #94a3b8; display: flex; gap: 8px; align-items: baseline; }
+  .gain-info .shares { color: #e2e8f0; font-size: 13px; }
+
+  /* ===== 进度条 ===== */
+  .price-bar-wrap { margin: 2px 0; }
+  .price-bar { position: relative; height: 36px; }
+
+  /* 底条 */
+  .bar-track {
+    position: absolute; top: 50%; left: 0; right: 0;
+    height: 5px; background: #1e293b; border-radius: 3px;
+    transform: translateY(-50%);
+  }
+  /* 区间色块 */
+  .bar-zones {
+    position: absolute; top: 50%; left: 0; right: 0;
+    height: 5px; transform: translateY(-50%);
+    border-radius: 3px; display: flex; overflow: hidden;
+  }
+  .zone-add  { background: rgba(34,197,94,0.35); }
+  .zone-hold { background: rgba(251,191,36,0.35); }
+  .zone-sell { background: rgba(239,68,68,0.35); }
+
+  /* 刻度点 */
+  .bar-ticks {
+    position: absolute; top: 50%; left: 0; right: 0;
+    transform: translateY(-50%); display: flex; justify-content: space-between;
+  }
+  .tick { display: flex; flex-direction: column; align-items: center; position: relative; flex-shrink: 0; }
+  .tick-line { width: 1px; height: 10px; background: #334155; }
+  .tick-label { position: absolute; font-size: 10px; color: #64748b; white-space: nowrap; transform: translateX(-50%); font-family: 'Courier New', monospace; }
+  .tick-label.top    { top: -15px; }
+  .tick-label.bottom { bottom: -15px; }
+  .tick-label.blue   { color: #60a5fa; font-weight: 600; }
+  .tick-label.red    { color: #f87171; }
+
+  /* 当前价指示器 */
+  .price-marker {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex; flex-direction: column; align-items: center; z-index: 2;
+  }
+  .marker-price {
+    position: absolute; top: -18px;
+    background: #1e3a5f; color: #60a5fa;
+    font-size: 11px; font-weight: 700; padding: 2px 7px;
+    border-radius: 4px; white-space: nowrap;
+    border: 1px solid #2563eb;
+    font-family: 'Courier New', monospace;
+  }
+  .marker-arrow {
+    width: 0; height: 0;
+    border-left: 5px solid transparent; border-right: 5px solid transparent;
+    border-top: 7px solid #60a5fa;
+  }
+  .marker-dot {
+    width: 9px; height: 9px; background: #60a5fa; border-radius: 50%;
+    border: 2px solid #0a0f1e;
+    box-shadow: 0 0 6px rgba(96,165,250,0.5); margin-top: -1px;
+  }
+
+  /* 底部关键价标注行 */
+  .key-prices {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 4px;
+  }
+  .key-price-item {
+    display: flex; flex-direction: column; align-items: center;
+    font-size: 10px; color: #475569; font-family: 'Courier New', monospace;
+  }
+  .key-price-item .label { font-size: 9px; margin-bottom: 1px; font-family: sans-serif; }
+  .key-price-item.blue .label { color: #60a5fa; }
+  .key-price-item.red  .label { color: #f87171; }
+
+  /* 按钮行 */
+  .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+  .btn { flex: 1; padding: 7px 0; border-radius: 8px; border: none; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+  .btn-add { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+  .btn-add:hover { background: rgba(34,197,94,0.25); }
+  .btn-sell { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+  .btn-sell:hover { background: rgba(239,68,68,0.25); }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; color: #94a3b8; border-color: #334155; background: #1e293b; }
+</style>
+</head>
+<body>
+
+<h1>进度条设计演示 · v3 精简版</h1>
+
+<!-- 案例1：接近第1次加仓点 -->
+<div class="demo-card">
+  <div class="top-row">
+    <div class="stock-name">中国石化</div>
+    <div class="chip-wrap">
+      <div class="chip"><span class="v">9.2</span> PE</div>
+      <div class="chip"><span class="v">0.78</span> PB</div>
+      <div class="chip"><span class="v" style="color:#4ade80">5.7%</span> 股息</div>
+      <div class="chip"><span class="v" style="color:#60a5fa">28.7%</span> 52周</div>
+    </div>
+  </div>
+  <div class="gain-row">
+    <div class="gain-pct down">-5.3%</div>
+    <div class="gain-info">
+      <span class="shares">100 股</span>
+      <span>¥5.53 均价</span>
+    </div>
+  </div>
+  <div class="price-bar-wrap">
+    <div class="price-bar">
+      <div class="bar-track"></div>
+      <div class="bar-zones">
+        <div class="zone-add"  style="width:15%"></div>
+        <div class="zone-hold" style="width:35%"></div>
+        <div class="zone-sell" style="width:50%"></div>
+      </div>
+      <div class="bar-ticks">
+        <div class="tick" style="left:0%">
+          <div class="tick-label top">¥4.20</div>
+          <div class="tick-line"></div>
+        </div>
+        <div class="tick" style="left:14%">
+          <div class="tick-label top blue">¥4.98</div>
+          <div class="tick-line"></div>
+          <div class="tick-label bottom blue">📉加仓</div>
+        </div>
+        <div class="tick" style="left:28%">
+          <div class="tick-label top">¥4.42</div>
+          <div class="tick-line"></div>
+          <div class="tick-label bottom">📉2次</div>
+        </div>
+        <div class="tick" style="left:48%">
+          <div class="tick-label top">¥5.53</div>
+          <div class="tick-line"></div>
+          <div class="tick-label bottom">买入</div>
+        </div>
+        <div class="tick" style="left:63%">
+          <div class="tick-label top">¥6.80</div>
+          <div class="tick-line"></div>
+          <div class="tick-label bottom">减半</div>
+        </div>
+        <div class="tick" style="left:87%">
+          <div class="tick-label top">¥7.80</div>
+          <div class="tick-line"></div>
+          <div class="tick-label bottom">清仓</div>
+        </div>
+        <div class="tick" style="left:100%">
+          <div class="tick-label top">¥8.00</div>
+          <div class="tick-line"></div>
+        </div>
+      </div>
+      <!-- ¥5.24: (5.24-4.20)/(8.00-4.20)=26% -->
+      <div class="price-marker" style="left:26%">
+        <div class="marker-price">¥5.24</div>
+        <div class="marker-dot"></div>
+        <div class="marker-arrow"></div>
+      </div>
+    </div>
+    <div class="key-prices">
+      <div class="key-price-item blue">
+        <div class="label">📉加仓</div>
+        <div>¥4.98</div>
+      </div>
+      <div class="key-price-item">
+        <div class="label">📉2次</div>
+        <div>¥4.42</div>
+      </div>
+      <div class="key-price-item">
+        <div class="label">买入</div>
+        <div>¥5.53</div>
+      </div>
+      <div class="key-price-item red">
+        <div class="label">减半</div>
+        <div>¥6.80</div>
+      </div>
+      <div class="key-price-item red">
+        <div class="label">清仓</div>
+        <div>¥7.80</div>
+      </div>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-add">加仓</button>
+    <button class="btn btn-sell">卖出</button>
+  </div>
+</div>
+
+<!-- 案例2：持有区间，正常 -->
+<div class="demo-card">
+  <div class="top-row">
+    <div class="stock-name">上港集团</div>
+    <div class="chip-wrap">
+      <div class="chip"><span class="v">14.5</span> PE</div>
+      <div class="chip"><span class="v">1.45</span> PB</div>
+      <div class="chip"><span class="v">2.8%</span> 股息</div>
+      <div class="chip"><span class="v" style="color:#fbbf24">48.2%</span> 52周</div>
+    </div>
+  </div>
+  <div class="gain-row">
+    <div class="gain-pct up">+4.9%</div>
+    <div class="gain-info">
+      <span class="shares">200 股</span>
+      <span>¥6.10 均价</span>
+    </div>
+  </div>
+  <div class="price-bar-wrap">
+    <div class="price-bar">
+      <div class="bar-track"></div>
+      <div class="bar-zones">
+        <div class="zone-add"  style="width:12%"></div>
+        <div class="zone-hold" style="width:38%"></div>
+        <div class="zone-sell" style="width:50%"></div>
+      </div>
+      <div class="bar-ticks">
+        <div class="tick" style="left:0%"><div class="tick-label top">¥4.80</div><div class="tick-line"></div></div>
+        <div class="tick" style="left:10%"><div class="tick-label top blue">¥5.49</div><div class="tick-line"></div><div class="tick-label bottom blue">📉加仓</div></div>
+        <div class="tick" style="left:20%"><div class="tick-label top">¥4.88</div><div class="tick-line"></div><div class="tick-label bottom">📉2次</div></div>
+        <div class="tick" style="left:48%"><div class="tick-label top">¥6.10</div><div class="tick-line"></div><div class="tick-label bottom">买入</div></div>
+        <div class="tick" style="left:70%"><div class="tick-label top">¥7.60</div><div class="tick-line"></div><div class="tick-label bottom">减半</div></div>
+        <div class="tick" style="left:90%"><div class="tick-label top">¥8.20</div><div class="tick-line"></div><div class="tick-label bottom">清仓</div></div>
+        <div class="tick" style="left:100%"><div class="tick-label top">¥8.50</div><div class="tick-line"></div></div>
+      </div>
+      <!-- ¥6.40: (6.40-4.80)/(8.50-4.80)=43% -->
+      <div class="price-marker" style="left:43%">
+        <div class="marker-price">¥6.40</div>
+        <div class="marker-dot"></div>
+        <div class="marker-arrow"></div>
+      </div>
+    </div>
+    <div class="key-prices">
+      <div class="key-price-item blue"><div class="label">📉加仓</div><div>¥5.49</div></div>
+      <div class="key-price-item"><div class="label">📉2次</div><div>¥4.88</div></div>
+      <div class="key-price-item"><div class="label">买入</div><div>¥6.10</div></div>
+      <div class="key-price-item red"><div class="label">减半</div><div>¥7.60</div></div>
+      <div class="key-price-item red"><div class="label">清仓</div><div>¥8.20</div></div>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn" disabled>加仓</button>
+    <button class="btn" disabled>卖出</button>
+  </div>
+</div>
+
+<!-- 案例3：减仓区间 -->
+<div class="demo-card">
+  <div class="top-row">
+    <div class="stock-name">中原高速</div>
+    <div class="chip-wrap">
+      <div class="chip"><span class="v">8.1</span> PE</div>
+      <div class="chip"><span class="v">0.85</span> PB</div>
+      <div class="chip"><span class="v" style="color:#4ade80">4.5%</span> 股息</div>
+      <div class="chip"><span class="v" style="color:#f87171">72.3%</span> 52周</div>
+    </div>
+  </div>
+  <div class="gain-row">
+    <div class="gain-pct up">+12.9%</div>
+    <div class="gain-info">
+      <span class="shares">300 股</span>
+      <span>¥3.80 均价</span>
+    </div>
+  </div>
+  <div class="price-bar-wrap">
+    <div class="price-bar">
+      <div class="bar-track"></div>
+      <div class="bar-zones">
+        <div class="zone-add"  style="width:12%"></div>
+        <div class="zone-hold" style="width:38%"></div>
+        <div class="zone-sell" style="width:50%"></div>
+      </div>
+      <div class="bar-ticks">
+        <div class="tick" style="left:0%"><div class="tick-label top">¥2.90</div><div class="tick-line"></div></div>
+        <div class="tick" style="left:9%"><div class="tick-label top blue">¥3.42</div><div class="tick-line"></div><div class="tick-label bottom blue">📉加仓</div></div>
+        <div class="tick" style="left:18%"><div class="tick-label top">¥3.04</div><div class="tick-line"></div><div class="tick-label bottom">📉2次</div></div>
+        <div class="tick" style="left:38%"><div class="tick-label top">¥3.80</div><div class="tick-line"></div><div class="tick-label bottom">买入</div></div>
+        <div class="tick" style="left:72%"><div class="tick-label top">¥4.86</div><div class="tick-line"></div><div class="tick-label bottom red">减半</div></div>
+        <div class="tick" style="left:90%"><div class="tick-label top">¥5.20</div><div class="tick-line"></div><div class="tick-label bottom red">清仓</div></div>
+        <div class="tick" style="left:100%"><div class="tick-label top">¥5.35</div><div class="tick-line"></div></div>
+      </div>
+      <!-- ¥4.29: (4.29-2.90)/(5.35-2.90)=72% -->
+      <div class="price-marker" style="left:72%">
+        <div class="marker-price">¥4.29</div>
+        <div class="marker-dot"></div>
+        <div class="marker-arrow"></div>
+      </div>
+    </div>
+    <div class="key-prices">
+      <div class="key-price-item blue"><div class="label">📉加仓</div><div>¥3.42</div></div>
+      <div class="key-price-item"><div class="label">📉2次</div><div>¥3.04</div></div>
+      <div class="key-price-item"><div class="label">买入</div><div>¥3.80</div></div>
+      <div class="key-price-item red"><div class="label">减半</div><div>¥4.86</div></div>
+      <div class="key-price-item red"><div class="label">清仓</div><div>¥5.20</div></div>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn" disabled>加仓</button>
+    <button class="btn btn-sell">卖出</button>
+  </div>
+</div>
+
+<!-- 案例4：略低于买入价 -->
+<div class="demo-card">
+  <div class="top-row">
+    <div class="stock-name">宝钢股份</div>
+    <div class="chip-wrap">
+      <div class="chip"><span class="v">7.8</span> PE</div>
+      <div class="chip"><span class="v">0.72</span> PB</div>
+      <div class="chip"><span class="v" style="color:#4ade80">6.1%</span> 股息</div>
+      <div class="chip"><span class="v" style="color:#60a5fa">35.5%</span> 52周</div>
+    </div>
+  </div>
+  <div class="gain-row">
+    <div class="gain-pct down">-0.7%</div>
+    <div class="gain-info">
+      <span class="shares">100 股</span>
+      <span>¥7.20 均价</span>
+    </div>
+  </div>
+  <div class="price-bar-wrap">
+    <div class="price-bar">
+      <div class="bar-track"></div>
+      <div class="bar-zones">
+        <div class="zone-add"  style="width:15%"></div>
+        <div class="zone-hold" style="width:35%"></div>
+        <div class="zone-sell" style="width:50%"></div>
+      </div>
+      <div class="bar-ticks">
+        <div class="tick" style="left:0%"><div class="tick-label top">¥5.50</div><div class="tick-line"></div></div>
+        <div class="tick" style="left:11%"><div class="tick-label top blue">¥6.48</div><div class="tick-line"></div><div class="tick-label bottom blue">📉加仓</div></div>
+        <div class="tick" style="left:22%"><div class="tick-label top">¥5.76</div><div class="tick-line"></div><div class="tick-label bottom">📉2次</div></div>
+        <div class="tick" style="left:42%"><div class="tick-label top">¥7.20</div><div class="tick-line"></div><div class="tick-label bottom">买入</div></div>
+        <div class="tick" style="left:65%"><div class="tick-label top">¥8.80</div><div class="tick-line"></div><div class="tick-label bottom">减半</div></div>
+        <div class="tick" style="left:87%"><div class="tick-label top">¥9.60</div><div class="tick-line"></div><div class="tick-label bottom">清仓</div></div>
+        <div class="tick" style="left:100%"><div class="tick-label top">¥10.10</div><div class="tick-line"></div></div>
+      </div>
+      <!-- ¥7.15: (7.15-5.50)/(10.10-5.50)=36% -->
+      <div class="price-marker" style="left:36%">
+        <div class="marker-price">¥7.15</div>
+        <div class="marker-dot"></div>
+        <div class="marker-arrow"></div>
+      </div>
+    </div>
+    <div class="key-prices">
+      <div class="key-price-item blue"><div class="label">📉加仓</div><div>¥6.48</div></div>
+      <div class="key-price-item"><div class="label">📉2次</div><div>¥5.76</div></div>
+      <div class="key-price-item"><div class="label">买入</div><div>¥7.20</div></div>
+      <div class="key-price-item red"><div class="label">减半</div><div>¥8.80</div></div>
+      <div class="key-price-item red"><div class="label">清仓</div><div>¥9.60</div></div>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-add">加仓</button>
+    <button class="btn" disabled>卖出</button>
+  </div>
+</div>
+
+<br>
+<div style="text-align:center;font-size:11px;color:#475569;line-height:1.8">
+  价格只在进度条上出现一次<br>
+  <span style="color:#4ade80">绿区</span> = 加仓区间 ·
+  <span style="color:#fbbf24">黄区</span> = 持有区间 ·
+  <span style="color:#f87171">红区</span> = 减仓区间
+</div>
+
+</body>
+</html>

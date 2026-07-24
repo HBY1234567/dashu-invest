@@ -890,8 +890,8 @@ function calcSignal(d){
   else if(peOk)holdNote='PE偏低';
   else if(pbOk)holdNote='PB偏低';
   else holdNote='估值一般';
-  return{label:'持有',cls:'hold',icon:'🟡',sub:'52周位置'+pos+'% · 合理区间',
-    detail:'52周位置'+pos+'%，处于30-70%合理区间 | '+peStr+' | '+pbStr+' | '+holdNote};
+  return{label:'持有',cls:'hold',icon:'🟡',sub:'52周位置'+pos+'%',
+    detail:'52周位置'+pos+'% | '+peStr+' | '+pbStr+' | '+holdNote};
 }
 // 大数投资买卖建议：以「相对买入价的浮盈亏」为判据
 // 涨50%卖一半(锁定本金) · 涨100%清仓(落袋为安) · 其余持有不动
@@ -1315,8 +1315,7 @@ function renderDetail(){
     var pos=s.week52Pos;var posBg=weekPosColor(pos);var posLabel=pos!=null?(pos+'%'):'—';
     html+='<div class="week52"><div class="week52-header"><span class="week52-title">📈 52周价格位置</span><span class="week52-badge" style="background:'+posBg+';color:#fff">'+posLabel+'</span></div>'+
       '<div class="week52-bar"><div style="position:absolute;left:30%;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.3)"></div><div style="position:absolute;left:70%;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.3)"></div><div class="week52-fill" style="width:'+(pos||0)+'%;background:'+posBg+'"></div></div>'+
-      '<div class="week52-labels"><span>最低</span><span style="color:#22c55e">🟢买入&lt;30%</span><span>🟡持有</span><span style="color:#ef4444">🔴卖出&gt;70%</span><span>最高</span></div>'+
-      (s.high52&&s.low52?'<div class="week52-range">52周低价 ¥'+s.low52+' &nbsp;|&nbsp; 52周高价 ¥'+s.high52+'</div>':'')+'</div>';
+      '<div class="week52-labels"><span>¥'+s.low52+'</span><span style="color:#22c55e">&lt;30%</span><span>30-70%</span><span style="color:#ef4444">&gt;70%</span><span>¥'+s.high52+'</span></div>'+'</div>';
   } else {
     html+='<div class="week52"><div class="week52-title" style="color:#475569;font-size:13px;text-align:center;padding:10px">⚠️ 52周数据暂时不可用</div></div>';
   }
@@ -1359,8 +1358,7 @@ function renderStockCard(s,live){
     var pos=d.week52Pos;var posBg=weekPosColor(pos);var posLabel=pos!=null?(pos+'%'):'—';
     html+='<div class="week52"><div class="week52-header"><span class="week52-title">📈 52周价格位置</span><span class="week52-badge" style="background:'+posBg+';color:#fff">'+posLabel+'</span></div>'+
       '<div class="week52-bar"><div style="position:absolute;left:30%;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.3)"></div><div style="position:absolute;left:70%;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.3)"></div><div class="week52-fill" style="width:'+(pos||0)+'%;background:'+posBg+'"></div></div>'+
-      '<div class="week52-labels"><span>最低</span><span style="color:#22c55e">🟢买入&lt;30%</span><span>🟡持有</span><span style="color:#ef4444">🔴卖出&gt;70%</span><span>最高</span></div>'+
-      (d.high52&&d.low52?'<div class="week52-range">52周低价 ¥'+d.low52+'  |  52周高价 ¥'+d.high52+'</div>':'')+'</div>';
+      '<div class="week52-labels"><span>¥'+d.low52+'</span><span style="color:#22c55e">&lt;30%</span><span>30-70%</span><span style="color:#ef4444">&gt;70%</span><span>¥'+d.high52+'</span></div>'+'</div>';
   } else {
     html+='<div class="week52"><div class="week52-title" style="color:#475569;font-size:13px;text-align:center;padding:10px">⚠️ 52周数据暂时不可用</div></div>';
   }
@@ -1405,7 +1403,6 @@ function renderPortfolio(){
   var gainSign=gainAmt>=0?'+':'';
   var html='<div class="account-card">';
   html+='<div class="account-row"><span class="account-label">💰 可用资金</span><span class="account-value">¥'+Math.round(totalBalance).toLocaleString()+'</span></div>';
-  html+='<div class="account-row"><span class="account-label">📊 持仓市值</span><span class="account-value">¥'+Math.round(totalMV).toLocaleString()+'</span></div>';
   html+='<div class="account-row"><span class="account-label">🏦 总资产</span><span class="account-value">¥'+Math.round(totalAssets).toLocaleString()+'</span></div>';
   html+='<div class="account-row"><span class="account-label">📈 浮动盈亏</span><span class="account-value '+gainCls+'">'+gainSign+Math.round(gainAmt).toLocaleString()+' 元（'+gainSign+gainPct.toFixed(2)+'%）</span></div>';
   html+='</div>';
@@ -1453,14 +1450,22 @@ function renderPortfolio(){
     else if(divRate>3)divHtml='<span class="div-tag normal">🟡 股息率'+divRate.toFixed(2)+'%</span>';
     else if(divRate>0)divHtml='<span class="div-tag low">股息率'+divRate.toFixed(2)+'%</span>';
     var livePriceStr=live.price?'¥'+live.price:'…';
+    var livePE=live.pe!=null?live.pe.toFixed(2):null;
+    var livePB=live.pb!=null?live.pb.toFixed(2):null;
     html+='<div class="practice-item">'+
       '<div class="practice-header"><div><div class="practice-name">'+escHtml(item.name)+'</div><div class="practice-code">'+escHtml(String(item.code||'').replace(/^(sh|sz|bj)/i,''))+' · '+escHtml(item.industry||'')+'</div></div>'+
       '<button class="practice-delete" onclick="removeItem(\''+escAttr(item.code)+'\')">✕</button></div>'+
       '<div class="practice-grid"><div class="practice-grid-item"><div class="practice-grid-label">持仓均价</div><div class="practice-grid-value">'+(buyPrice?'¥'+buyPrice.toFixed(2):'—')+'</div></div>'+
-      '<div class="practice-grid-item"><div class="practice-grid-label">数量</div><div class="practice-grid-value">'+(shares?shares+'股':'—')+'</div></div>'+
-      '<div class="practice-grid-item"><div class="practice-grid-label">当前价</div><div class="practice-grid-value">'+livePriceStr+'</div></div></div>';
+      '<div class="practice-grid-item"><div class="practice-grid-label">持股股数</div><div class="practice-grid-value">'+(shares?shares+'股':'—')+'</div></div>'+
+      '<div class="practice-grid-item"><div class="practice-grid-label">现价</div><div class="practice-grid-value">'+livePriceStr+'</div></div></div>';
     if(gain!=null)html+='<div class="practice-gain" style="color:'+gainColor+'">'+(parseFloat(gain)>=0?'+':'')+gain+'% '+(gainAmtI!=null?'('+(parseFloat(gain)>=0?'+':'¥')+parseInt(gainAmtI).toLocaleString()+')':'')+'</div>';
-    html+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px"><span class="practice-tag">52周 '+(pos!=null?pos+'%':'—')+'</span>'+(divHtml?divHtml:'')+'</div>'+signalHtml;
+    var tagHtml='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">';
+    tagHtml+='<span class="practice-tag">52周 '+(pos!=null?pos+'%':'—')+'</span>';
+    if(livePE)tagHtml+='<span class="practice-tag">PE '+livePE+'</span>';
+    if(livePB)tagHtml+='<span class="practice-tag">PB '+livePB+'</span>';
+    if(divHtml)tagHtml+=divHtml;
+    tagHtml+='</div>';
+    html+=tagHtml+signalHtml;
     // 始终显示操作按钮（不再被 holdings.length>0 卡住，老实践表数据也能用）
     var isInTrading=tradingState.holdings.some(function(h){return h.code===item.code;});
     var buyLabel=isInTrading?'加仓':'买入';
@@ -1472,7 +1477,7 @@ function renderPortfolio(){
     html+='</div>';
     html+='</div>';
   });
-  html+='</div><div class="footer">每30秒自动刷新 · 📉跌10%/20%触发加仓 · 📊52周>50%卖一半 · 📊52周>80%清仓</div>';
+  html+='</div><div class="footer">每30秒自动刷新 · 📉跌10%/20%触发加仓提示 · 📊52周>50%卖一半 · 📊52周>80%清仓提示</div>';
   c.innerHTML=html;
 }
 function filterIndustry(industry){
