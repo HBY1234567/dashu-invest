@@ -1525,7 +1525,7 @@ function renderPortfolio(){
     var overList=[];
     for(var k in indMap){var pct=totalMV>0?indMap[k].mv/totalMV*100:0;if(pct>SINGLE_INDUSTRY_CAP)overList.push(k+' '+pct.toFixed(0)+'%');}
     if(overList.length>0)html+='<div class="warn-banner">⚠️ 行业集中度预警：'+overList.join('、')+' 超过 '+SINGLE_INDUSTRY_CAP+'% 上限</div>';
-    html+='<div class="ind-breakdown"><div class="industry-title">🏭 行业分布</div>';
+    html+='<div class="ind-breakdown" id="ind-section"><div class="industry-title">🏭 行业分布</div>';
     var indKeys=Object.keys(indMap).sort(function(a,b){return indMap[b].mv-indMap[a].mv;});
     indKeys.forEach(function(k){
       var pct=totalMV>0?indMap[k].mv/totalMV*100:0;
@@ -1539,10 +1539,10 @@ function renderPortfolio(){
   var filterInd=state.industryFilter;
   var list=holdings.length>0?holdings:state.practice;
   if(filterInd)list=list.filter(function(it){return(it.industry||'其他')===filterInd;});
-  if(filterInd)html+='<div class="ind-filter-bar" style="padding:8px 10px;background:rgba(59,130,246,.15);border-radius:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;font-size:13px">'+
+  if(filterInd)html+='<div class="ind-filter-bar" id="filter-banner" style="padding:8px 10px;background:rgba(59,130,246,.15);border-radius:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;font-size:13px">'+
     '<span style="color:#93c5fd">🏢 筛选：'+escHtml(filterInd)+'（'+list.length+'只）</span>'+
     '<span style="color:#94a3b8;cursor:pointer;font-size:12px" onclick="clearIndustryFilter()">✕ 清除</span></div>';
-  html+='<div class="holding-list">';
+  html+='<div class="holding-list" id="holding-section">';
   list.forEach(function(item){
     var live=state.livePrices[item.code]||{};
     var cur=live.price||item.buyPrice||0;
@@ -1609,15 +1609,23 @@ function renderPortfolio(){
 function filterIndustry(industry){
   state.industryFilter=state.industryFilter===industry?null:industry;
   render();
-  // 滚到持仓列表顶部
-  if(state.industryFilter){
-    var list=document.querySelector('.ind-filter-bar');
-    if(list)list.scrollIntoView({behavior:'smooth',block:'start'});
-  }
+  setTimeout(function(){
+    if(state.industryFilter){
+      var el=document.getElementById('filter-banner')||document.getElementById('holding-section');
+      if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
+    }else{
+      var el=document.getElementById('ind-section');
+      if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
+    }
+  },50);
 }
 function clearIndustryFilter(){
   state.industryFilter=null;
   render();
+  setTimeout(function(){
+    var el=document.getElementById('ind-section');
+    if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
+  },50);
 }
 function showSignalFilter(cls){
   state.signalFilter=state.signalFilter===cls?null:cls;
