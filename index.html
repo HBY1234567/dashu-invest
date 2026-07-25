@@ -420,7 +420,7 @@ const STOCKS = [
   {code:'sh603986',name:'兆易创新',industry:'芯片'},
   {code:'sz002475',name:'立讯精密',industry:'电子'},
   {code:'sh601111',name:'中国国航',industry:'航空'},
-  {code:'sh601169',name:'北京银行',industry:'银行'},{code:'sz000402',name:'金融街',industry:'房地产'},
+  {code:'sh601169',name:'北京银行',industry:'银行'},{code:'sz002958',name:'青农商行',industry:'银行'},{code:'sz000402',name:'金融街',industry:'房地产'},
   {code:'sz002582',name:'好想你',industry:'食品'},{code:'sh600020',name:'中原高速',industry:'高速'},
   {code:'sh600827',name:'百联股份',industry:'商业'},
 ];
@@ -912,7 +912,13 @@ function showPriceLoadingModal(code, isAdd) {
 function showBuyConfirmModal(code, isAdd) {
   var live = state.livePrices[code] || {};
   var price = live.price || 0;
-  var s = state.selectedStock || STOCKS.find(function(x) { return x.code === code; }) || {};
+  // 优先从 STOCKS 取静态数据（避免 state.selectedStock 残留其他股票数据导致行业错乱）
+  var s = STOCKS.find(function(x) { return x.code === code; }) || {};
+  // 若 STOCKS 中没有（如青农商行等未收录股票），尝试从现有持仓取已存数据
+  if (!s.name) {
+    var existingForMeta = tradingState.holdings.find(function(h) { return h.code === code; });
+    if (existingForMeta) s = { name: existingForMeta.name, industry: existingForMeta.industry };
+  }
   // 检查是否已有持仓（加仓场景）
   var existingHolding = isAdd ? (tradingState.holdings.find(function(h){return h.code===code;}) || null) : null;
   if (!price) { alert('获取价格失败'); return; }
