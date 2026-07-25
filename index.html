@@ -250,7 +250,8 @@ input,button{font-family:inherit}
 .bottomnav{position:fixed;bottom:0;left:0;right:0;background:#1e293b;border-top:1px solid #334155;display:flex;z-index:200;box-shadow:0 -2px 8px rgba(0,0,0,0.3);padding-bottom:env(safe-area-inset-bottom,0)}
 .bottomnav button{flex:1;padding:12px 0;background:none;border:none;color:#64748b;font-size:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
 .bottomnav button.active{color:#60a5fa}
-.bottomnav .home-btn{color:#60a5fa;font-weight:700}
+.bottomnav .home-btn{color:#64748b;font-weight:600}
+.bottomnav .home-btn.active{color:#60a5fa;font-weight:700}
 /* 加载进度条 */
 .loadbar-wrap{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:14px 16px;margin-bottom:16px}
 .loadbar-text{font-size:13px;color:#94a3b8;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
@@ -316,6 +317,31 @@ body.locked{background:#0f172a;overflow:hidden}
 
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
 .shake{animation:shake .3s ease}
+/* 独立主页 dashboard */
+.home-page{max-width:600px;margin:0 auto}
+.home-section{margin-top:14px;background:rgba(30,41,59,.5);border:1px solid #334155;border-radius:12px;padding:12px 14px}
+.home-section-title{font-size:14px;font-weight:700;color:#e2e8f0;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.home-index{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.home-idx-card{background:rgba(15,23,42,.6);border:1px solid #334155;border-radius:10px;padding:10px 12px}
+.home-idx-name{font-size:12px;color:#94a3b8;margin-bottom:4px}
+.home-idx-price{font-size:18px;font-weight:700;color:#e2e8f0}
+.home-idx-chg{font-size:12px;margin-top:2px}
+.home-idx-us{font-size:9px;color:#64748b;margin-top:2px}
+.home-portfolio{background:rgba(15,23,42,.5);border-radius:10px;padding:10px 12px}
+.home-pf-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:13px}
+.home-pf-row .l{color:#94a3b8}
+.home-pf-row .v{font-weight:700;color:#e2e8f0}
+.home-shortcuts{display:flex;gap:10px;margin-top:10px}
+.home-shortcut{flex:1;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);border-radius:10px;padding:10px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;transition:all .15s}
+.home-shortcut:hover{background:rgba(59,130,246,.2)}
+.home-shortcut .ic{font-size:22px}
+.home-shortcut .txt{font-size:12px;color:#cbd5e1}
+.sig-dist{display:flex;flex-wrap:wrap;gap:8px}
+.sig-badge{font-size:12px;padding:5px 10px;border-radius:8px;cursor:pointer;font-weight:600}
+.home-watch-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(15,23,42,.5);border-radius:8px;margin-bottom:6px;cursor:pointer}
+.home-watch-row .l{font-size:13px;color:#cbd5e1}
+.home-watch-row .r{font-size:12px;color:#93c5fd}
+.search-hint-card{margin-top:14px}
 </style>
 </head>
 <body class="locked">
@@ -344,7 +370,7 @@ body.locked{background:#0f172a;overflow:hidden}
 </div>
 </div>
 <div class="bottomnav">
-  <button class="home-btn" onclick="goHome()">🏠<span>返回主页</span></button>
+  <button id="nav-home" class="home-btn" onclick="goHome()">🏠<span>主页</span></button>
   <button id="nav-search" onclick="switchTab('search')">🔍<span>查询</span></button>
   <button id="nav-portfolio" onclick="switchTab('portfolio')">📊<span>模拟炒股</span></button>
 <button id="nav-pick" onclick="switchTab('pick')">🌟<span>优选</span></button>
@@ -1174,7 +1200,7 @@ async function fetchMarketIndices(){
       return fetchStockDetail(r.code).then(function(d){if(!d.error)state.indices[r.code]=d;}).catch(function(){});
     });
     await Promise.all(proms);
-    if(state.tab==='search')render();
+    if(state.tab==='home'||state.tab==='search')render();
   }catch(e){}
 }
 function renderHomeTop(){
@@ -1241,6 +1267,122 @@ function renderHomeTop(){
   }
   return html;
 }
+// ---- 独立主页（dashboard） ----
+function renderHome(){
+  var c=$('#content');
+  var holdings=tradingState.holdings;
+  var practice=state.practice||[];
+  var html='<div class="home-page">';
+  // 大盘指数卡（独立标题「投资概览」）
+  html+='<div class="home-section"><div class="home-section-title">📊 投资概览</div>';
+  html+='<div class="home-index">';
+  HOME_INDICES.forEach(function(r){
+    var d=state.indices[r.code];
+    var price=d&&d.price?d.price:'—';
+    var chg=d&&d.chg!=null?d.chg:null;
+    var chgStr=chg!=null?(chg>=0?'+':'')+chg+'%':'—';
+    var col=chg!=null?chgColor(chg):'#94a3b8';
+    var usLabel=r.isUS?'<div class="home-idx-us">美股上交易日</div>':'';
+    html+='<div class="home-idx-card"><div class="home-idx-name">'+escHtml(r.name)+'</div>'+
+      '<div class="home-idx-price">'+price+'</div>'+
+      '<div class="home-idx-chg" style="color:'+col+'">'+chgStr+'</div>'+usLabel+'</div>';
+  });
+  html+='</div></div>';
+
+  // 组合摘要（真实 holdings）
+  if(holdings&&holdings.length>0){
+    var totalMV=0,totalCost=0;
+    holdings.forEach(function(item){
+      var live=state.livePrices[item.code]||{};
+      var cur=live.price||item.buyPrice||0;
+      totalMV+=cur*(item.shares||0);
+      totalCost+=(item.buyPrice||0)*(item.shares||0);
+    });
+    var totalAssets=totalMV+tradingState.balance;
+    var gainAmt=totalMV-totalCost;
+    var gainPct=totalCost>0?(gainAmt/totalCost*100):0;
+    var gainCls=gainAmt>=0?'gain':'loss';
+    var gainSign=gainAmt>=0?'+':'';
+    html+='<div class="home-section"><div class="home-section-title">💼 模拟账户</div>'+
+      '<div class="home-portfolio">'+
+      '<div class="home-pf-row"><span class="l">可用资金</span><span class="v">¥'+Math.round(tradingState.balance).toLocaleString()+'</span></div>'+
+      '<div class="home-pf-row"><span class="l">总资产</span><span class="v">¥'+Math.round(totalAssets).toLocaleString()+'</span></div>'+
+      '<div class="home-pf-row"><span class="l">总盈亏</span><span class="v '+gainCls+'">'+gainSign+Math.abs(Math.round(gainAmt)).toLocaleString()+' 元（'+gainSign+gainPct.toFixed(2)+'%）</span></div>'+
+      '</div>';
+    // 快捷入口
+    html+='<div class="home-shortcuts">'+
+      '<div class="home-shortcut" onclick="switchTab(\'portfolio\')"><div class="ic">📊</div><div class="txt">查看持仓</div></div>'+
+      '<div class="home-shortcut" onclick="switchTab(\'pick\')"><div class="ic">🌟</div><div class="txt">优选加仓</div></div>'+
+      '</div></div>';
+
+    // 信号分布（仅真实 holdings）
+    var sigCnt={add1:0,add2:0,stop:0,half:0,clear:0};
+    holdings.forEach(function(item){
+      var live=state.livePrices[item.code]||{};
+      var price=live.price||0;
+      var pos=live.week52Pos;
+      var addSig=calcAddSignal(item.code,price);
+      if(addSig&&addSig.action==='add'&&addSig.level===1)sigCnt.add1++;
+      else if(addSig&&addSig.action==='add'&&addSig.level===2)sigCnt.add2++;
+      else if(addSig&&addSig.action==='stop')sigCnt.stop++;
+      var sellSig=calcSellSignal(pos);
+      if(sellSig==='half')sigCnt.half++;
+      else if(sellSig==='clear')sigCnt.clear++;
+    });
+    var totalSig=sigCnt.add1+sigCnt.add2+sigCnt.stop+sigCnt.half+sigCnt.clear;
+    if(totalSig>0){
+      html+='<div class="home-section"><div class="home-section-title">🔔 信号提醒（'+totalSig+' 条）</div><div class="sig-dist">';
+      if(sigCnt.add1>0)html+='<span class="sig-badge" style="background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.3)" onclick="switchTab(\'portfolio\')">📉 第1次加仓 '+sigCnt.add1+'</span>';
+      if(sigCnt.add2>0)html+='<span class="sig-badge" style="background:rgba(251,146,60,.15);color:#fb923c;border:1px solid rgba(251,146,60,.3)" onclick="switchTab(\'portfolio\')">📉 第2次加仓 '+sigCnt.add2+'</span>';
+      if(sigCnt.stop>0)html+='<span class="sig-badge" style="background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)" onclick="switchTab(\'portfolio\')">🔴 建议止损 '+sigCnt.stop+'</span>';
+      if(sigCnt.half>0)html+='<span class="sig-badge" style="background:rgba(251,146,60,.15);color:#fb923c;border:1px solid rgba(251,146,60,.3)" onclick="switchTab(\'portfolio\')">🟠 卖一半 '+sigCnt.half+'</span>';
+      if(sigCnt.clear>0)html+='<span class="sig-badge" style="background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)" onclick="switchTab(\'portfolio\')">🔴 清仓 '+sigCnt.clear+'</span>';
+      html+='</div></div>';
+    }
+  } else {
+    // 模拟账户为空时显示引导
+    html+='<div class="home-section"><div class="home-section-title">💼 模拟账户</div>'+
+      '<div class="home-empty" style="padding:20px;text-align:center;color:#94a3b8;background:rgba(30,41,59,.5);border-radius:10px">'+
+      '<div style="font-size:40px;margin-bottom:8px">📈</div>'+
+      '<div style="font-size:14px;color:#cbd5e1;margin-bottom:6px">还没有模拟持仓</div>'+
+      '<div style="font-size:12px">去「<a style="color:#60a5fa;cursor:pointer" onclick="switchTab(\'search\')">查询</a>」或「<a style="color:#60a5fa;cursor:pointer" onclick="switchTab(\'pick\')">优选</a>」开始建仓</div>'+
+      '</div></div>';
+  }
+
+  // 仅关注的行业（practice-only）
+  var watchIndMap={};
+  holdings.forEach(function(h){watchIndMap[h.code]=1;});
+  var watchInd={};
+  practice.forEach(function(p){
+    if(!watchIndMap[p.code]){
+      var ind=p.industry||'其他';
+      if(!watchInd[ind])watchInd[ind]=[];
+      watchInd[ind].push(p);
+    }
+  });
+  var watchIndKeys=Object.keys(watchInd);
+  if(watchIndKeys.length>0){
+    html+='<div class="home-section"><div class="home-section-title">📌 关注但未买入（'+watchIndKeys.reduce(function(s,k){return s+watchInd[k].length;},0)+' 只）</div>';
+    watchIndKeys.forEach(function(ind){
+      html+='<div class="home-watch-row" onclick="switchTab(\'portfolio\')"><span class="l">'+escHtml(ind)+'</span><span class="r">'+watchInd[ind].length+'只</span></div>';
+    });
+    html+='</div>';
+  }
+
+  html+='</div>';
+  c.innerHTML=html;
+}
+// 查询页空状态提示（区别于主页）
+function renderSearchHint(){
+  return '<div class="search-hint-card" style="margin-top:14px;padding:18px;background:rgba(30,41,59,.5);border-radius:12px;text-align:center">'+
+    '<div style="font-size:34px;margin-bottom:8px">🔍</div>'+
+    '<div style="font-size:14px;color:#cbd5e1;margin-bottom:6px">输入股票代码或名称开始查询</div>'+
+    '<div style="font-size:12px;color:#94a3b8">支持模糊匹配：600519、茅台、平安银行</div>'+
+    '<div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">'+
+    '<span style="font-size:11px;padding:4px 10px;background:rgba(59,130,246,.15);color:#93c5fd;border-radius:12px;cursor:pointer" onclick="$(\'#search-input\').value=\'600519\';doSearch()">试试 600519</span>'+
+    '<span style="font-size:11px;padding:4px 10px;background:rgba(59,130,246,.15);color:#93c5fd;border-radius:12px;cursor:pointer" onclick="switchTab(\'pick\')">或去优选看看</span>'+
+    '</div></div>';
+}
 function loadPractice(){try{var list=JSON.parse(localStorage.getItem('dashu-practice')||'[]');list.forEach(function(p){if(!p.industry||p.industry==='其他'){var e=STOCKS.find(function(s){return s.code===p.code;});if(e)p.industry=e.industry;}});return list;}catch(e){return[];}}
 function savePractice(list){localStorage.setItem('dashu-practice',JSON.stringify(list));}
 function fuzzyMatch(q){
@@ -1259,15 +1401,22 @@ function fuzzyMatch(q){
 // 渲染
 // ============================================================
 function render(){
-  var map={search:'#nav-search',portfolio:'#nav-portfolio',pick:'#nav-pick'};
+  var map={home:'#nav-home',search:'#nav-search',portfolio:'#nav-portfolio',pick:'#nav-pick'};
   for(var _k in map){var _b=$(map[_k]);if(_b)_b.classList.toggle('active',state.tab===_k);}
   if(state.viewStack.length>0){var c0=$('#content');if(c0)c0.innerHTML=renderDetail();return;}
-  if(state.tab==='search')renderSearch();
+  if(state.tab==='home')renderHome();
+  else if(state.tab==='search')renderSearch();
   else if(state.tab==='portfolio')renderPortfolio();
 else renderPick();
 }
 function switchTab(tab){
   state.tab=tab;
+  if(tab==='home'){
+    state.query='';state.searchResults=[];state.viewStack=[];state.selectedStock=null;state.industryFilter=null;
+    var inp=$('#search-input');if(inp)inp.value='';
+    var sug=$('#suggestions');if(sug)sug.classList.remove('show');
+    if(Object.keys(state.indices).length===0)fetchMarketIndices();
+  }
   if(tab==='portfolio'){
     if(!tradingState.initialized) loadTradingState();
     state.practice=loadPractice();refreshLivePrices();
@@ -1277,10 +1426,13 @@ if(tab==='pick'){if(Object.keys(state.pickLive).length===0)loadPickList();}
   render();
 }
 function goHome(){
-  state.tab='search';state.query='';state.searchResults=[];state.viewStack=[];state.selectedStock=null;
+  state.tab='home';state.query='';state.searchResults=[];state.viewStack=[];state.selectedStock=null;
+  state.industryFilter=null;
   render();
   var inp=$('#search-input');if(inp)inp.value='';
   var sug=$('#suggestions');if(sug)sug.classList.remove('show');
+  // 首次进入主页时拉一次大盘指数
+  if(Object.keys(state.indices).length===0)fetchMarketIndices();
 }
 // ---- 查询页 ----
 function renderSearch(){
@@ -1294,7 +1446,7 @@ function renderSearch(){
       '<button class="search-btn" id="search-btn" onclick="doSearch()">查询</button>'+
     '</div>'+
     '<div class="search-suggestions" id="suggestions"></div>';
-    if(!hasResults && !hasQuery){ html+=renderHomeTop(); }
+    if(!hasResults && !hasQuery){ html+=renderSearchHint(); }
     // 有搜索结果时直接显示详情卡片（不显示行业推荐和默认提示）
     if(hasResults){
       // 直接显示第一个搜索结果的详情卡片
@@ -1521,10 +1673,11 @@ function renderPortfolio(){
     c.innerHTML='<div class="practice-empty"><div class="icon">📊</div><div class="title">模拟账户为空</div><div class="desc">去「查询」页面搜索股票，然后点击「买入」开始模拟交易</div></div>';
     return;
   }
+  // 财务数据只算真实 holdings：practice-only 的「虚拟持仓」不计入总资产/盈亏/行业市值
+  // 但 practice-only 的行业/股票仍会出现在持仓列表底部「📌 仅关注」分组，便于用户看到关注范围
   var totalMV=0,totalCost=0,totalBalance=tradingState.balance;
   var indMap={};
-  var displayItems=mergedList;
-  displayItems.forEach(function(item){
+  holdings.forEach(function(item){
     var live=state.livePrices[item.code]||{};
     var cur=live.price||item.buyPrice||0;
     var mv=cur*(item.shares||0);
@@ -1533,6 +1686,16 @@ function renderPortfolio(){
     var ind=item.industry||'其他';
     if(!indMap[ind])indMap[ind]={mv:0,count:0};
     indMap[ind].mv+=mv;indMap[ind].count++;
+  });
+  // 标记仅在 practice 中、real-holdings 没有的行业（用于行业分布显示「📌 仅关注」）
+  var holdingCodes={};
+  holdings.forEach(function(h){holdingCodes[h.code]=1;});
+  practice.forEach(function(p){
+    if(!holdingCodes[p.code]){
+      var ind=p.industry||'其他';
+      if(!indMap[ind])indMap[ind]={mv:0,count:0};
+      indMap[ind]._watchOnly=true;
+    }
   });
   var totalAssets=totalMV+totalBalance;
   var gainAmt=totalMV-totalCost;
@@ -1579,16 +1742,23 @@ function renderPortfolio(){
     html+='<div class="ind-breakdown" id="ind-section"><div class="industry-title">🏭 行业分布</div>';
     var indKeys=Object.keys(indMap).sort(function(a,b){return indMap[b].mv-indMap[a].mv;});
     indKeys.forEach(function(k){
-      var pct=totalMV>0?indMap[k].mv/totalMV*100:0;
+      // 仅关注的行业（行业内有股票但都不是真实持仓）→ 占比按 0 显示，标记「📌 仅关注」
+      var watch=indMap[k]._watchOnly;
+      var pct=watch?0:(totalMV>0?indMap[k].mv/totalMV*100:0);
       var over=pct>SINGLE_INDUSTRY_CAP;
       var isActive=filterInd===k;
-      html+='<div class="ind-bar-row '+(isActive?'active':'')+'" onclick="filterIndustry(\''+escAttr(k)+'\')"><div class="ind-bar-head"><span class="ind-bar-name">'+escHtml(k)+'（'+indMap[k].count+'只）</span><span class="ind-bar-pct">'+pct.toFixed(1)+'%</span></div>'+
-        '<div class="ind-bar-track"><div class="ind-bar-fill '+(over?'over':'ok')+'" style="width:'+Math.min(pct,100)+'%"></div></div></div>';
+      var watchTag=watch?' <span style="color:#93c5fd;font-size:10px;font-weight:600">📌 仅关注</span>':'';
+      var pctText=watch?'—':pct.toFixed(1)+'%';
+      html+='<div class="ind-bar-row '+(isActive?'active':'')+'" onclick="filterIndustry(\''+escAttr(k)+'\')" '+(watch?'data-watch="1"':'')+'><div class="ind-bar-head"><span class="ind-bar-name">'+escHtml(k)+'（'+indMap[k].count+'只）'+watchTag+'</span><span class="ind-bar-pct">'+pctText+'</span></div>'+
+        '<div class="ind-bar-track"><div class="ind-bar-fill '+(over?'over':'ok')+'" style="width:'+(watch?0:Math.min(pct,100))+'%"></div></div></div>';
     });
     html+='</div>';
   }
+  // 持仓列表：真实 holdings 在前（参与财务计算），practice-only 的「仅关注」在底部独立分组
+  var holdingList=mergedList.filter(function(it){return it._source==='holding';});
+  var watchOnlyList=mergedList.filter(function(it){return it._source==='practice';});
   var filterInd=state.industryFilter;
-  var list=mergedList;
+  var list=holdingList;
   if(filterInd)list=list.filter(function(it){return(it.industry||'其他')===filterInd;});
   if(filterInd)html+='<div class="ind-filter-bar" id="filter-banner" style="padding:8px 10px;background:rgba(59,130,246,.15);border-radius:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;font-size:13px">'+
     '<span style="color:#93c5fd">🏢 筛选：'+escHtml(filterInd)+'（'+list.length+'只）</span>'+
@@ -1656,7 +1826,25 @@ function renderPortfolio(){
     html+='</div>';
     html+='</div>';
   });
-  html+='</div><div class="footer">每30秒自动刷新 · 📉跌10%/20%触发加仓提示 · 📊52周>50%卖一半 · 📊52周>80%清仓提示</div>';
+  html+='</div>';  // 持仓列表结束
+  // 📌 仅关注分组（practice 中但未真实买入的股票，不参与财务计算）
+  if(watchOnlyList.length>0 && !filterInd){
+    html+='<div class="watch-only-section" style="margin-top:18px;padding:10px 12px;background:rgba(147,197,253,.08);border:1px dashed rgba(147,197,253,.3);border-radius:10px">';
+    html+='<div style="font-size:12px;color:#93c5fd;font-weight:600;margin-bottom:8px">📌 仅关注（未买入，'+watchOnlyList.length+'只）</div>';
+    html+='<div style="font-size:11px;color:#94a3b8;margin-bottom:10px">这些股票来自「优选」页加入的实践表，没有真实买入，不计入总资产/盈亏</div>';
+    watchOnlyList.forEach(function(item){
+      var live=state.livePrices[item.code]||{};
+      var cur=live.price||item.buyPrice||0;
+      html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(30,41,59,.6);border-radius:8px;margin-bottom:6px">'+
+        '<div><div style="font-size:13px;color:#e2e8f0;font-weight:600">'+escHtml(item.name)+'</div>'+
+        '<div style="font-size:11px;color:#94a3b8">'+escHtml(String(item.code||'').replace(/^(sh|sz|bj)/i,''))+' · '+escHtml(item.industry||'')+'</div></div>'+
+        '<div style="text-align:right"><div style="font-size:13px;color:#cbd5e1">'+(cur?'¥'+cur:'—')+'</div>'+
+        '<button style="font-size:11px;color:#22c55e;background:none;border:none;cursor:pointer" onclick="showBuyConfirmModal(\''+escAttr(item.code)+'\',false)">📈 买入</button></div>'+
+        '</div>';
+    });
+    html+='</div>';
+  }
+  html+='<div class="footer">每30秒自动刷新 · 📉跌10%/20%触发加仓提示 · 📊52周>50%卖一半 · 📊52周>80%清仓提示</div>';
   c.innerHTML=html;
 }
 function filterIndustry(industry){
