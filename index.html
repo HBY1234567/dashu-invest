@@ -371,9 +371,8 @@ body.locked{background:#0f172a;overflow:hidden}
 </div>
 <div class="bottomnav">
   <button id="nav-home" class="home-btn" onclick="goHome()">🏠<span>主页</span></button>
-  <button id="nav-search" onclick="switchTab('search')">🔍<span>查询</span></button>
   <button id="nav-portfolio" onclick="switchTab('portfolio')">📊<span>模拟炒股</span></button>
-<button id="nav-pick" onclick="switchTab('pick')">🌟<span>优选</span></button>
+  <button id="nav-pick" onclick="switchTab('pick')">🌟<span>优选</span></button>
 </div>
 <noscript>
 <div style="padding:24px;text-align:center;color:#f59e0b"><h2>⚠️ 请开启 JavaScript</h2><p style="margin-top:12px">大数投资需要 JavaScript 才能查询股票行情。请在浏览器设置中启用 JavaScript 后刷新页面。</p></div>
@@ -1006,7 +1005,7 @@ function submitBuyConfirm(code) {
 }
 
 const state = {
-  tab:'search', query:'', searchResults:[], searching:false,
+  tab:'home', query:'', searchResults:[], searching:false,
   viewStack:[], selectedStock:null, loadingDetail:false,
   practice:[], livePrices:{}, showAddModal:false, addForm:{},
   industryLive:{}, market:{hs300:null}, indices:{},
@@ -1206,7 +1205,7 @@ async function fetchMarketIndices(){
       return fetchStockDetail(r.code).then(function(d){if(!d.error)state.indices[r.code]=d;}).catch(function(){});
     });
     await Promise.all(proms);
-    if(state.tab==='home'||state.tab==='search')render();
+    if(state.tab==='home')render();
   }catch(e){}
 }
 function renderHomeTop(){
@@ -1279,6 +1278,31 @@ function renderHome(){
   var holdings=tradingState.holdings;
   var practice=state.practice||[];
   var html='<div class="home-page">';
+  
+  // 搜索框（合并查询功能）
+  html+='<div class="home-section" style="padding:12px"><div class="search-wrap" style="margin-bottom:0">'+
+    '<input id="search-input" type="text" placeholder="输入代码或名称，如 600519、茅台" autocomplete="off" style="background:#0f172a" value="'+escAttr(state.query||'')+'">'+
+    '<button class="search-btn" onclick="doSearchFromHome()">查询</button>'+
+    '</div>'+
+    '<div class="search-suggestions" id="suggestions"></div></div>';
+  
+  // 如果有搜索结果或选中股票，显示详情卡片
+  if(state.selectedStock||state.searchResults.length>0){
+    if(state.selectedStock){
+      html+=renderStockCard(state.selectedStock,state.selectedStock);
+      html+='<div style="padding:0 14px;margin-bottom:14px"><button class="back-btn" onclick="clearHomeSearch()">← 清除搜索</button></div>';
+    }else if(state.searchResults.length>0){
+      // 显示搜索结果列表（简化版）
+      html+='<div class="home-section"><div class="home-section-title">🔍 搜索结果</div>';
+      state.searchResults.forEach(function(s){
+        html+='<div class="home-watch-row" onclick="viewStockFromHome({code:\''+escAttr(s.code)+'\',name:\''+escAttr(s.name)+'\'})">'+
+          '<span class="l">'+escHtml(s.name)+' <span style="color:#64748b">'+escHtml(s.code.replace(/^(sh|sz|bj)/i,''))+'</span></span>'+
+          '<span class="r" style="color:#60a5fa">查看 →</span></div>';
+      });
+      html+='<div style="margin-top:10px"><button class="back-btn" onclick="clearHomeSearch()">← 清除搜索</button></div></div>';
+    }
+  }
+  
   // 大盘指数卡（独立标题「投资概览」）
   html+='<div class="home-section"><div class="home-section-title">📊 投资概览</div>';
   html+='<div class="home-index">';
@@ -1351,7 +1375,7 @@ function renderHome(){
       '<div class="home-empty" style="padding:20px;text-align:center;color:#94a3b8;background:rgba(30,41,59,.5);border-radius:10px">'+
       '<div style="font-size:40px;margin-bottom:8px">📈</div>'+
       '<div style="font-size:14px;color:#cbd5e1;margin-bottom:6px">还没有模拟持仓</div>'+
-      '<div style="font-size:12px">去「<a style="color:#60a5fa;cursor:pointer" onclick="switchTab(\'search\')">查询</a>」或「<a style="color:#60a5fa;cursor:pointer" onclick="switchTab(\'pick\')">优选</a>」开始建仓</div>'+
+      '<div style="font-size:12px">在上方搜索框查找股票，或去「<a style="color:#60a5fa;cursor:pointer" onclick="switchTab(\'pick\')">优选</a>」开始建仓</div>'+
       '</div></div>';
   }
 
@@ -1377,7 +1401,26 @@ function renderHome(){
 
   html+='</div>';
   c.innerHTML=html;
+  // 绑定搜索框事件
+  bindHomeSearchInput();
 }
+
+function bindHomeSearchInput(){
+  var inp=$('#search-input');if(!inp||inp._bound)return;inp._bound=true;
+  inp.addEventListener('input',function(e){state.query=e.target.value;handleSearchInput(state.query);});
+  inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doSearchFromHome();}});
+}
+function clearHomeSearch(){
+  state.query='';state.searchResults=[];state.selectedStock=null;
+  render();
+}
+async function viewStockFromHome(stock){
+  state.viewStack.push('detail');state.selectedStock=stock;state.loadingDetail=true;render();
+  var d=await fetchStockDetail(stock.code);
+  if(!d.error){state.selectedStock=Object.assign({},stock,d);state.livePrices[stock.code]=d;}
+  state.loadingDetail=false;render();
+}
+
 // 查询页空状态提示（区别于主页）
 function renderSearchHint(){
   return '<div class="search-hint-card" style="margin-top:14px;padding:18px;background:rgba(30,41,59,.5);border-radius:12px;text-align:center">'+
@@ -1407,20 +1450,17 @@ function fuzzyMatch(q){
 // 渲染
 // ============================================================
 function render(){
-  var map={home:'#nav-home',search:'#nav-search',portfolio:'#nav-portfolio',pick:'#nav-pick'};
+  var map={home:'#nav-home',portfolio:'#nav-portfolio',pick:'#nav-pick'};
   for(var _k in map){var _b=$(map[_k]);if(_b)_b.classList.toggle('active',state.tab===_k);}
   if(state.viewStack.length>0){var c0=$('#content');if(c0)c0.innerHTML=renderDetail();return;}
   if(state.tab==='home')renderHome();
-  else if(state.tab==='search')renderSearch();
   else if(state.tab==='portfolio')renderPortfolio();
-else renderPick();
+  else renderPick();
 }
 function switchTab(tab){
   state.tab=tab;
   if(tab==='home'){
     state.query='';state.searchResults=[];state.viewStack=[];state.selectedStock=null;state.industryFilter=null;
-    var inp=$('#search-input');if(inp)inp.value='';
-    var sug=$('#suggestions');if(sug)sug.classList.remove('show');
     if(Object.keys(state.indices).length===0)fetchMarketIndices();
   }
   if(tab==='portfolio'){
@@ -1428,55 +1468,24 @@ function switchTab(tab){
     state.practice=loadPractice();refreshLivePrices();
     if(!state.market.hs300)fetchMarketTemp();
   }
-if(tab==='pick'){if(Object.keys(state.pickLive).length===0)loadPickList();}
+  if(tab==='pick'){if(Object.keys(state.pickLive).length===0)loadPickList();}
   render();
 }
 function goHome(){
   state.tab='home';state.query='';state.searchResults=[];state.viewStack=[];state.selectedStock=null;
   state.industryFilter=null;
   render();
-  var inp=$('#search-input');if(inp)inp.value='';
-  var sug=$('#suggestions');if(sug)sug.classList.remove('show');
   // 首次进入主页时拉一次大盘指数
   if(Object.keys(state.indices).length===0)fetchMarketIndices();
 }
-// ---- 查询页 ----
-function renderSearch(){
-  var c=$('#content');
-  if(state.viewStack.length===0){
-    // 检查是否已有搜索结果或详情
-    var hasResults=state.searchResults&&state.searchResults.length>0;
-    var hasQuery=state.query&&state.query.trim();
-    var html='<div class="search-wrap">'+
-      '<input id="search-input" type="text" placeholder="输入代码或名称，如 600519、茅台、平安" autocomplete="off" autofocus value="'+escAttr(state.query||'')+'">'+
-      '<button class="search-btn" id="search-btn" onclick="doSearch()">查询</button>'+
-    '</div>'+
-    '<div class="search-suggestions" id="suggestions"></div>';
-    if(!hasResults && !hasQuery){ html+=renderSearchHint(); }
-    // 有搜索结果时直接显示详情卡片（不显示行业推荐和默认提示）
-    if(hasResults){
-      // 直接显示第一个搜索结果的详情卡片
-      var s=state.searchResults[0];
-      var live=state.livePrices[s.code]||{};
-      html+=renderStockCard(s,live);
-      html+='<div style="margin-top:12px"><button class="back-btn" onclick="clearSearch()">← 清除搜索</button></div>';
-    }else if(hasQuery){
-      html+='<div class="empty-hint">未找到「'+escHtml(state.query)+'」，试试其他关键词</div>';
-      html+='<div style="margin-top:12px"><button class="back-btn" onclick="clearSearch()">← 返回</button></div>';
-    }
-    c.innerHTML=html;
-    bindSearchInput();
-    if(Object.keys(state.industryLive).length===0){
-      refreshIndustryRecs();
-    }
-  } else {
-    c.innerHTML=renderDetail();
-  }
+
+// 主页搜索处理
+function doSearchFromHome(){
+  doSearch();
 }
+// ---- 搜索相关函数（已合并到主页） --
 function bindSearchInput(){
-  var inp=$('#search-input');if(!inp||inp._bound)return;inp._bound=true;
-  inp.addEventListener('input',function(e){state.query=e.target.value;handleSearchInput(state.query);});
-  inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doSearch();}});
+  // 保留兼容但不使用
 }
 function renderIndustrySection(){
   var html='<div class="industry-section"><div class="industry-title">📊 行业推荐（按大数投资理论 · 全行业覆盖）</div><div class="industry-stocks" id="industry-recs">';
@@ -1517,7 +1526,7 @@ async function doSearch(){
   var sug=$('#suggestions');if(sug)sug.classList.remove('show');
   if(/^\d{6}$/.test(val)){
     var c=val;
-    if(/^(688|300|200|900|8)/.test(c)){state.searchResults=[];render();return;}
+    if(/^(688|300|200,900|8)/.test(c)){state.searchResults=[];render();return;}
     if(/^(51|15|56|58|59)/.test(c)){state.searchResults=[];render();return;}
     var secid=c.startsWith('6')?'sh'+c:'sz'+c;
     // 直接查询并显示详情（在当前页下方）
@@ -1536,11 +1545,20 @@ async function doSearch(){
     if(sm.length)results=sm;
   }
   state.searchResults=results;
+  // 如果只有一个结果，直接显示详情
+  if(results.length===1){
+    var s=results[0];
+    var r=await fetchStockDetail(s.code);
+    if(!r.error){
+      state.selectedStock=Object.assign({},s,r);
+      state.livePrices[s.code]=r;
+    }
+  }
   render();
 }
 // renderSearchResults 已合并到 renderSearch 中
 function clearSearch(){state.query='';state.searchResults=[];state.viewStack=[];state.selectedStock=null;render();var inp=$('#search-input');if(inp)inp.value='';}
-function selectSuggestion(code,name){var sug=$('#suggestions');if(sug)sug.classList.remove('show');var inp=$('#search-input');if(inp)inp.value=code.replace(/^(sh|sz|bj)/i,'');state.query=inp.value;}
+function selectSuggestion(code,name){var sug=$('#suggestions');if(sug)sug.classList.remove('show');var inp=$('#search-input');if(inp)inp.value=code.replace(/^(sh|sz|bj)/i,'');state.query=inp.value;doSearchFromHome();}
 function renderNotice(msg){
   var c=$('#content');if(!c)return;
   var html='<div class="search-wrap"><input id="search-input" type="text" placeholder="输入代码或名称，如 600519、茅台" value="'+escAttr(state.query)+'" autocomplete="off"><button class="search-btn" onclick="doSearch()">查询</button></div>';
@@ -2189,7 +2207,7 @@ try{
 
 }catch(err){console.error('Init error:',err);showInitError(err.message||err);throw err;}
 // 行情刷新
-setInterval(function(){if(state.tab==='search')fetchMarketIndices();},60000);
+setInterval(function(){if(state.tab==='home')fetchMarketIndices();},60000);
 setInterval(function(){if(state.tab==='portfolio'&&state.practice.length>0)refreshLivePrices();},30000);
 setInterval(function(){if(state.tab==='pick'&&!state.pickLoading&&Object.keys(state.pickLive).length>0)loadPickList();},120000);
 </script>
