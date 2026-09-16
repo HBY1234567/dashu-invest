@@ -347,7 +347,7 @@ body.locked{background:#0f172a;overflow:hidden}
 </head>
 <body class="locked">
 <div class="header">
-  <h1>📈 大数投资</h1>
+  <h1 id="app-logo">📈 大数投资</h1>
   <div class="sub">行业内排名选股 · 组合分散 · 市场温度计</div>
   <button class="cloud-btn" id="cloud-btn" onclick="openCloudModal()">☁️ <span id="cloud-btn-label">云同步</span> <span class="dot" id="cloud-dot"></span></button>
 </div>
@@ -390,7 +390,7 @@ const STOCKS = [
   {code:'sh601318',name:'中国平安',industry:'保险'},{code:'sh601628',name:'中国人寿',industry:'保险'},
   {code:'sh601601',name:'中国太保',industry:'保险'},
   {code:'sh600030',name:'中信证券',industry:'证券'},{code:'sh300059',name:'东方财富',industry:'证券'},
-  {code:'sh600570',name:'恒生电子',industry:'证券'},
+  {code:'sh600570',name:'恒生电子',industry:'软件'},
   {code:'sh601857',name:'中国石油',industry:'石油'},{code:'sh600028',name:'中国石化',industry:'石油'},
   {code:'sh600938',name:'中国海油',industry:'石油'},{code:'sh601088',name:'中国神华',industry:'煤炭'},
   {code:'sh601225',name:'陕西煤业',industry:'煤炭'},{code:'sh600188',name:'兖矿能源',industry:'煤炭'},
@@ -406,7 +406,7 @@ const STOCKS = [
   {code:'sz000333',name:'美的集团',industry:'家电'},{code:'sz000651',name:'格力电器',industry:'家电'},
   {code:'sh600276',name:'恒瑞医药',industry:'医药'},{code:'sh603259',name:'药明康德',industry:'医药'},
   {code:'sz000002',name:'万科A',industry:'房地产'},{code:'sh600048',name:'保利发展',industry:'房地产'},
-  {code:'sh601668',name:'中国建筑',industry:'房地产'},
+  {code:'sh601668',name:'中国建筑',industry:'基建'},
   {code:'sh600104',name:'上汽集团',industry:'汽车'},{code:'sz002594',name:'比亚迪',industry:'汽车'},
   {code:'sh601633',name:'长城汽车',industry:'汽车'},
   {code:'sh600019',name:'宝钢股份',industry:'钢铁'},{code:'sh601186',name:'中国铁建',industry:'基建'},
@@ -435,7 +435,8 @@ const INDUSTRY_RECS = [
   {code:'sh600276',name:'恒瑞医药',industry:'医药'},{code:'sz000002',name:'万科A',industry:'房地产'},
   {code:'sz002594',name:'比亚迪',industry:'汽车'},{code:'sh600019',name:'宝钢股份',industry:'钢铁'},
   {code:'sh601668',name:'中国建筑',industry:'基建'},{code:'sh600941',name:'中国移动',industry:'通信'},
-  {code:'sh600588',name:'用友网络',industry:'软件'},{code:'sh601012',name:'隆基绿能',industry:'新能源'},
+  {code:'sh600588',name:'用友网络',industry:'软件'},{code:'sh600570',name:'恒生电子',industry:'软件'},
+  {code:'sh601012',name:'隆基绿能',industry:'新能源'},
   {code:'sh601899',name:'紫金矿业',industry:'矿业'},{code:'sh600309',name:'万华化学',industry:'化工'},
   {code:'sh603986',name:'兆易创新',industry:'芯片'},{code:'sz002475',name:'立讯精密',industry:'电子'},
   {code:'sh601111',name:'中国国航',industry:'航空'},
@@ -475,6 +476,15 @@ const DIV_MAP = {
 };
 const GBK_DECODER = new TextDecoder('gbk');
 const ALL_INDUSTRIES=[...new Set(STOCKS.map(function(s){return s.industry;}))].filter(function(i){return i&&i!=='ETF';}).sort();
+// ===== 数据质量三层防御 =====
+// 第一层：行业枚举约束——合法行业白名单，加载时校验
+const VALID_INDUSTRIES=['银行','保险','证券','石油','煤炭','电力','港口','航运','高速','白酒','食品','家电','医药','房地产','汽车','钢铁','基建','通信','软件','新能源','矿业','化工','芯片','电子','航空','商业','ETF'];
+STOCKS.forEach(function(s){
+  if(s.industry&&VALID_INDUSTRIES.indexOf(s.industry)===-1){
+    console.warn('[数据质量] 未知行业分类: '+s.code+' '+s.name+' → "'+s.industry+'"');
+  }
+});
+// 第二层状态：API 行业兜底校验（fetchStockDetail 中填充，state.industryWarnings 在 state 定义中初始化）
 const PE_THRESHOLD = 20;   // PE≤20 低估
 const PB_THRESHOLD = 2;    // PB≤2 低估
 const SINGLE_INDUSTRY_CAP = 20; // 单一行业仓位上限 20%（大数投资分散原则）
@@ -1015,6 +1025,7 @@ const state = {
   pickBuild:false, buildCapital:100000,
   industryFilter:null,
   signalFilter:null,
+  industryWarnings:[],
 };
 function $(s){return document.querySelector(s);}
 function escHtml(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -1151,6 +1162,14 @@ async function fetchStockDetail(code){
   }
   var stockEntry=STOCKS.find(function(s){return s.code===code;});
   var industry=stockEntry?stockEntry.industry:'';
+  // 第二层：API 兜底校验——比对腾讯 f167 行业与硬编码
+  var apiIndustry=f[167]||'';
+  if(apiIndustry&&industry&&apiIndustry!==industry){
+    var existWarn=state.industryWarnings.find(function(w){return w.code===code;});
+    if(!existWarn){
+      state.industryWarnings.push({code:code,name:f[1]||code,hardcoded:industry,api:apiIndustry});
+    }
+  }
   return{
     code:code,name:f[1]||code,price:price,industry:industry,
     pe:(pe!==null&&pe>0)?Math.round(pe*100)/100:null,
@@ -1346,29 +1365,49 @@ function renderHome(){
       '<div class="home-shortcut" onclick="switchTab(\'pick\')"><div class="ic">🌟</div><div class="txt">优选加仓</div></div>'+
       '</div></div>';
 
-    // 信号分布（仅真实 holdings）
+    // 第二层防御 UI：行业不一致警告
+    if(state.industryWarnings.length>0){
+      html+='<div class="home-section"><div style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:10px 14px;font-size:12px;color:#fca5a5">⚠ 发现 '+state.industryWarnings.length+' 只股票行业分类与 API 不一致，<span style="color:#60a5fa;cursor:pointer;text-decoration:underline" onclick="toggleIndustryAudit()">点击查看详情</span></div></div>';
+    }
+
+    // 信号分布（仅真实 holdings）—— 收集明细供徽章展开
     var sigCnt={add1:0,add2:0,stop:0,half:0,clear:0};
+    var sigStocks={add1:[],add2:[],stop:[],half:[],clear:[]};
     holdings.forEach(function(item){
       var live=state.livePrices[item.code]||{};
       var price=live.price||0;
       var pos=live.week52Pos;
       var addSig=calcAddSignal(item.code,price);
-      if(addSig&&addSig.action==='add'&&addSig.level===1)sigCnt.add1++;
-      else if(addSig&&addSig.action==='add'&&addSig.level===2)sigCnt.add2++;
-      else if(addSig&&addSig.action==='stop')sigCnt.stop++;
+      if(addSig&&addSig.action==='add'&&addSig.level===1){sigCnt.add1++;sigStocks.add1.push({code:item.code,name:item.name,reason:'跌至买入价90%，建议第1次加仓'});}
+      else if(addSig&&addSig.action==='add'&&addSig.level===2){sigCnt.add2++;sigStocks.add2.push({code:item.code,name:item.name,reason:'跌至买入价80%，建议第2次加仓'});}
+      else if(addSig&&addSig.action==='stop'){sigCnt.stop++;sigStocks.stop.push({code:item.code,name:item.name,reason:'跌破买入价73%，建议止损'});}
       var sellSig=calcSellSignal(pos);
-      if(sellSig==='half')sigCnt.half++;
-      else if(sellSig==='clear')sigCnt.clear++;
+      if(sellSig==='half'){sigCnt.half++;sigStocks.half.push({code:item.code,name:item.name,reason:'52周位置>'+50+'%，建议卖一半'});}
+      else if(sellSig==='clear'){sigCnt.clear++;sigStocks.clear.push({code:item.code,name:item.name,reason:'52周位置>'+80+'%，建议清仓'});}
     });
     var totalSig=sigCnt.add1+sigCnt.add2+sigCnt.stop+sigCnt.half+sigCnt.clear;
     if(totalSig>0){
       html+='<div class="home-section"><div class="home-section-title">🔔 信号提醒（'+totalSig+' 条）</div><div class="sig-dist">';
-      if(sigCnt.add1>0)html+='<span class="sig-badge" style="background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.3)" onclick="switchTab(\'portfolio\')">📉 第1次加仓 '+sigCnt.add1+'</span>';
-      if(sigCnt.add2>0)html+='<span class="sig-badge" style="background:rgba(251,146,60,.15);color:#fb923c;border:1px solid rgba(251,146,60,.3)" onclick="switchTab(\'portfolio\')">📉 第2次加仓 '+sigCnt.add2+'</span>';
-      if(sigCnt.stop>0)html+='<span class="sig-badge" style="background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)" onclick="switchTab(\'portfolio\')">🔴 建议止损 '+sigCnt.stop+'</span>';
-      if(sigCnt.half>0)html+='<span class="sig-badge" style="background:rgba(251,146,60,.15);color:#fb923c;border:1px solid rgba(251,146,60,.3)" onclick="switchTab(\'portfolio\')">🟠 卖一半 '+sigCnt.half+'</span>';
-      if(sigCnt.clear>0)html+='<span class="sig-badge" style="background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)" onclick="switchTab(\'portfolio\')">🔴 清仓 '+sigCnt.clear+'</span>';
-      html+='</div></div>';
+      if(sigCnt.add1>0)html+='<span class="sig-badge" style="background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.3);cursor:pointer" onclick="toggleSigList(\'add1\')">📉 第1次加仓 '+sigCnt.add1+'</span>';
+      if(sigCnt.add2>0)html+='<span class="sig-badge" style="background:rgba(251,146,60,.15);color:#fb923c;border:1px solid rgba(251,146,60,.3);cursor:pointer" onclick="toggleSigList(\'add2\')">📉 第2次加仓 '+sigCnt.add2+'</span>';
+      if(sigCnt.stop>0)html+='<span class="sig-badge" style="background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3);cursor:pointer" onclick="toggleSigList(\'stop\')">🔴 建议止损 '+sigCnt.stop+'</span>';
+      if(sigCnt.half>0)html+='<span class="sig-badge" style="background:rgba(251,146,60,.15);color:#fb923c;border:1px solid rgba(251,146,60,.3);cursor:pointer" onclick="toggleSigList(\'half\')">🟠 卖一半 '+sigCnt.half+'</span>';
+      if(sigCnt.clear>0)html+='<span class="sig-badge" style="background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3);cursor:pointer" onclick="toggleSigList(\'clear\')">🔴 清仓 '+sigCnt.clear+'</span>';
+      html+='</div>';
+      // 各信号明细列表容器
+      var sigKeys=['add1','add2','stop','half','clear'];
+      for(var si=0;si<sigKeys.length;si++){
+        var k=sigKeys[si];
+        if(sigStocks[k].length>0){
+          html+='<div id="sig-list-'+k+'" class="sig-stock-list" style="display:none;margin-top:8px">';
+          sigStocks[k].forEach(function(st){
+            var entry=STOCKS.find(function(s){return s.code===st.code;})||{industry:''};;
+            html+='<div class="sig-stock-item" style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;margin:4px 0;background:rgba(30,41,59,.5);border-radius:8px;cursor:pointer" onclick="viewStockFromHome({code:\''+st.code+'\',name:\''+st.name+'\',industry:\''+entry.industry+'\'})"><div><div style="font-size:13px;color:#e2e8f0">'+escHtml(st.name)+'</div><div style="font-size:11px;color:#94a3b8">'+escHtml(st.reason)+'</div></div><div style="font-size:16px;color:#60a5fa">›</div></div>';
+          });
+          html+='</div>';
+        }
+      }
+      html+='</div>';
     }
   } else {
     // 模拟账户为空时显示引导
@@ -1410,6 +1449,40 @@ function bindHomeSearchInput(){
   var inp=$('#search-input');if(!inp||inp._bound)return;inp._bound=true;
   inp.addEventListener('input',function(e){state.query=e.target.value;handleSearchInput(state.query);});
   inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doSearchFromHome();}});
+}
+// 信号徽章展开/收起
+function toggleSigList(key){
+  var el=$('#sig-list-'+key);
+  if(!el)return;
+  el.style.display=(el.style.display==='none')?'block':'none';
+}
+// 第三层：可视化行业审计入口（长按 logo 5秒触发）
+function toggleIndustryAudit(){
+  var el=$('#industry-audit-panel');
+  if(el){el.remove();return;}
+  var pairs=STOCKS.map(function(s){
+    var live=state.industryLive[s.code]||state.livePrices[s.code]||{};
+    var apiInd=live.apiIndustry||live.industry||'';
+    // apiIndustry 来自腾讯 f167，但 fetchStockDetail return 里没有单独存 f167
+    // 这里用 state.industryWarnings 查找
+    var warn=state.industryWarnings.find(function(w){return w.code===s.code;});
+    var status='✓ 一致';
+    if(warn)status='⚠ 不一致';
+    else if(!apiInd)status='— 未校验';
+    return {code:s.code,name:s.name,hardcoded:s.industry,api:warn?warn.api:'（未校验）',status:status};
+  });
+  var html='<div id="industry-audit-panel" style="position:fixed;top:60px;left:10px;right:10px;max-height:70vh;overflow-y:auto;background:#1e293b;border:1px solid #334155;border-radius:12px;padding:16px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,.4)">';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-size:15px;color:#e2e8f0;font-weight:600">🔍 行业分类审计</div><div style="cursor:pointer;color:#94a3b8;font-size:18px" onclick="toggleIndustryAudit()">✕</div></div>';
+  if(state.industryWarnings.length>0){
+    html+='<div style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:#f87171">⚠ 发现 '+state.industryWarnings.length+' 处行业不一致，请核对</div>';
+  }
+  html+='<table style="width:100%;font-size:12px;color:#cbd5e1;border-collapse:collapse"><thead><tr style="border-bottom:1px solid #334155"><th style="text-align:left;padding:6px">代码</th><th style="text-align:left;padding:6px">名称</th><th style="text-align:left;padding:6px">硬编码</th><th style="text-align:left;padding:6px">API</th><th style="text-align:left;padding:6px">状态</th></tr></thead><tbody>';
+  pairs.forEach(function(p){
+    var rowStyle=p.status.startsWith('⚠')?'color:#f87171':'';
+    html+='<tr style="border-bottom:1px solid rgba(51,65,85,.3);'+rowStyle+'"><td style="padding:4px 6px">'+p.code+'</td><td style="padding:4px 6px">'+escHtml(p.name)+'</td><td style="padding:4px 6px">'+escHtml(p.hardcoded)+'</td><td style="padding:4px 6px">'+escHtml(p.api)+'</td><td style="padding:4px 6px">'+p.status+'</td></tr>';
+  });
+  html+='</tbody></table></div>';
+  document.body.insertAdjacentHTML('beforeend',html);
 }
 function clearHomeSearch(){
   state.query='';state.searchResults=[];state.selectedStock=null;
@@ -2442,6 +2515,22 @@ setInterval(function(){if(state.tab==='pick'&&!state.pickLoading&&Object.keys(st
   };
 
   setTimeout(updateCloudUI,500);
+
+  // ===== 第三层：长按 logo 5秒触发行业审计 =====
+  (function(){
+    var logo=document.getElementById('app-logo');
+    if(!logo)return;
+    var timer=null;
+    function startPress(e){e.preventDefault();timer=setTimeout(function(){toggleIndustryAudit();timer=null;},5000);}
+    function endPress(){if(timer){clearTimeout(timer);timer=null;}}
+    logo.addEventListener('touchstart',startPress,{passive:false});
+    logo.addEventListener('touchend',endPress);
+    logo.addEventListener('touchmove',endPress);
+    logo.addEventListener('mousedown',startPress);
+    logo.addEventListener('mouseup',endPress);
+    logo.addEventListener('mouseleave',endPress);
+    logo.style.userSelect='none';
+  })();
 })();
 </script>
 </body>
