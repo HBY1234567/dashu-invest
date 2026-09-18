@@ -2073,7 +2073,13 @@ function renderPick(){
     return;
   }
   var f=state.pickFilter;
-  var heldInds={};state.practice.forEach(function(p){if(p.industry)heldInds[p.industry]=1;});
+  // 防御性刷新 practice：从其他 tab 直接切换过来时避免 state.practice 陈旧（导致漏掉刚买入的标的行业）
+  state.practice=loadPractice();
+  // 「本行业已持有」行业集合：合并真实持仓 + 仅关注（含通过 syncPracticeFromHoldings 同步进来的持仓项）
+  // 修复 bug：之前只查 state.practice，但用户从「模拟炒股」页买入的恒生电子（仅在 tradingState.holdings 中）漏标
+  var heldInds={};
+  tradingState.holdings.forEach(function(h){if(h.industry)heldInds[h.industry]=1;});
+  state.practice.forEach(function(p){if(p.industry)heldInds[p.industry]=1;});
   // Step 1: 可用数据
   var all=Object.keys(state.pickLive).map(function(k){return state.pickLive[k];}).filter(function(d){
     return d.price!=null&&d.pe!=null&&d.pb!=null&&d.pe>0&&d.pb>0 && !d.isExcludedBoard;
