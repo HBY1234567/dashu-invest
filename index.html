@@ -523,6 +523,36 @@ function loadTradingState() {
   tradingState.initialized = true;
 }
 
+// 回填 holdings.industry：从 STOCKS 查表，修复「本行业已持有」行业标记漏判 bug
+// 触发场景：用户从老版本买入的标的，holdings 中 industry 字段缺失 / 为空 / 误标为 '其他'
+function backfillHoldingIndustry() {
+  var dirty = false;
+  tradingState.holdings.forEach(function(h){
+    var stock = STOCKS.find(function(s){ return s.code === h.code; });
+    if (stock && stock.industry && (!h.industry || h.industry === '其他' || h.industry !== stock.industry)) {
+      h.industry = stock.industry;
+      dirty = true;
+    }
+  });
+  if (dirty) saveTradingState();
+  // practice 表同样回填
+  try {
+    var raw = localStorage.getItem('dashu-practice');
+    if (raw) {
+      var list = JSON.parse(raw);
+      var pDirty = false;
+      list.forEach(function(p){
+        var stock = STOCKS.find(function(s){ return s.code === p.code; });
+        if (stock && stock.industry && (!p.industry || p.industry === '其他' || p.industry !== stock.industry)) {
+          p.industry = stock.industry;
+          pDirty = true;
+        }
+      });
+      if (pDirty) localStorage.setItem('dashu-practice', JSON.stringify(list));
+    }
+  } catch(e) {}
+}
+
 // 把老实践表的数据自动迁移到模拟账户（仅当模拟账户为空时）
 function migratePracticeToTrading() {
   if (tradingState.holdings.length > 0) return;
@@ -2283,6 +2313,7 @@ try{
   setLoadBar(10,'加载股池…');
   loadTradingState(); // 加载模拟炒股账户
   migratePracticeToTrading(); // 老实践表数据自动迁移到模拟账户
+  backfillHoldingIndustry(); // 回填 holdings/practice 缺失的 industry 字段（修复本行业已持有漏标）
   state.practice=loadPractice();
   setLoadBar(30,'加载股池完成');
   render();
