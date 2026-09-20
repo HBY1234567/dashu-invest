@@ -284,6 +284,14 @@ input,button{font-family:inherit}
 .pick-tag.buy{background:#052e16;color:#22c55e}
 .pick-tag.hold{background:#451a03;color:#f59e0b}
 .pick-tag.sell{background:#450a0a;color:#ef4444}
+/* 52周位置高亮（优选/组合/详情通用） */
+.pos-tag{font-size:11px;padding:2px 8px;border-radius:5px;margin-right:6px;margin-bottom:4px;display:inline-block;font-weight:600}
+.pos-tag.pos-low{background:#052e16;color:#22c55e;border:1px solid rgba(34,197,94,.3)}
+.pos-tag.pos-mid{background:#451a03;color:#f59e0b;border:1px solid rgba(245,158,11,.3)}
+.pos-tag.pos-high{background:#450a0a;color:#ef4444;border:1px solid rgba(239,68,68,.3)}
+.pos-tag.pos-none{background:#0f172a;color:#64748b;border:1px solid #334155}
+/* 在 .pick-meta 内联使用时去掉右侧 margin，避免错位 */
+.pick-meta .pos-tag{margin-right:0;margin-left:2px}
 .pick-divider{text-align:center;padding:10px 0;font-size:12px;color:#93c5fd;font-weight:600;border-top:1px dashed #1e40af;margin:10px 0 4px;background:linear-gradient(180deg,rgba(30,58,138,0.15),transparent)}
 .pick-detail{font-size:10px;color:#94a3b8;margin-top:4px;line-height:1.4;padding:4px 6px;background:#0f172a;border-radius:4px;border-left:2px solid #475569}
 .pick-detail.buy-detail{border-left-color:#22c55e}
@@ -1031,6 +1039,8 @@ function $(s){return document.querySelector(s);}
 function escHtml(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function escAttr(s){if(s==null)return'';return String(s).replace(/'/g,'&#39;').replace(/"/g,'&quot;');}
 function weekPosColor(pos){if(pos==null)return'#475569';if(pos<30)return'#22c55e';if(pos>70)return'#ef4444';return'#f59e0b';}
+// 52周位置 → pos-tag CSS class 名（优选/组合页 .pick-meta 和 .practice-tag 复用）
+function posCls(pos){if(pos==null)return'pos-none';if(pos<30)return'pos-low';if(pos>70)return'pos-high';return'pos-mid';}
 function chgColor(c){if(c==null)return'#94a3b8';return c>=0?'#ef4444':'#22c55e';}
 // 大数投资信号：52周位置为核心 + 双低辅助
 function calcSignal(d){
@@ -1063,8 +1073,8 @@ function calcSignal(d){
   else if(peOk)holdNote='PE偏低';
   else if(pbOk)holdNote='PB偏低';
   else holdNote='估值一般';
-  return{label:'持有',cls:'hold',icon:'🟡',sub:'52周位置'+pos+'%',
-    detail:'52周位置'+pos+'% | '+peStr+' | '+pbStr+' | '+holdNote};
+  return{label:'持有观望',cls:'hold',icon:'🟡',sub:'52周位置'+pos+'% · 中位',
+    detail:'52周位置'+pos+'%，处于中位区间（30-70%）| '+peStr+' | '+pbStr+' | '+holdNote+' · 信号建议，非实际持仓'};
 }
 // 大数投资买卖建议：以「相对买入价的浮盈亏」为判据
 // 涨50%卖一半(锁定本金) · 涨100%清仓(落袋为安) · 其余持有不动
@@ -1906,7 +1916,7 @@ function renderPortfolio(){
         '<span style="font-size:13px;color:#94a3b8;font-weight:600">总盈亏</span>'+totalVal+'</div>';
     }
     var tagHtml='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">';
-    tagHtml+='<span class="practice-tag">52周 '+(pos!=null?pos+'%':'—')+'</span>';
+    tagHtml+='<span class="pos-tag '+posCls(pos)+'">52周 '+(pos!=null?pos+'%':'—')+'</span>';
     if(livePE)tagHtml+='<span class="practice-tag">PE '+livePE+((livePE&&parseFloat(livePE)<13.4)?' ↓偏低':' '+(livePE&&parseFloat(livePE)>18?'↑偏高':''))+'</span>';
     if(livePB)tagHtml+='<span class="practice-tag">PB '+livePB+'</span>';
     if(live.roe){var roeHint=live.roe>=15?'✅优秀':live.roe>=10?'🟡良好':live.roe>=5?'⚠️一般':'❌偏低';tagHtml+='<span class="practice-tag">ROE '+live.roe.toFixed(1)+'% '+roeHint+'</span>';}
@@ -2194,7 +2204,7 @@ function renderPick(){
           '<div class="pick-name">'+escHtml(d.name)+' <span style="font-size:11px;color:#64748b">'+escHtml((d.code||'').replace(/^(sh|sz|bj)/i,''))+'</span>'+
             (state.pickSort!=='ind'?'<span style="font-size:11px;color:#94a3b8;margin-left:6px">· '+escHtml(d.industry)+'</span>':'')+
           '</div>'+
-          '<div class="pick-meta">PE '+(d.pe!=null?d.pe.toFixed(2):'—')+(peOk?'✅':'⚠️')+' · PB '+(d.pb!=null?d.pb.toFixed(2):'—')+(pbOk?'✅':'⚠️')+' · 52周'+(d.week52Pos!=null?d.week52Pos+'%':'—')+(d.dividendYield!=null?' · 股息率'+(d.dividendYield>3?'🟡':' ')+d.dividendYield.toFixed(2)+'%':' 股息率—')+'</div>'+
+          '<div class="pick-meta">PE '+(d.pe!=null?d.pe.toFixed(2):'—')+(peOk?'✅':'⚠️')+' · PB '+(d.pb!=null?d.pb.toFixed(2):'—')+(pbOk?'✅':'⚠️')+' · <span class="pos-tag '+posCls(d.week52Pos)+'">52周 '+(d.week52Pos!=null?d.week52Pos+'%':'—')+'</span>'+(d.dividendYield!=null?' · 股息率'+(d.dividendYield>3?'🟡':' ')+d.dividendYield.toFixed(2)+'%':' 股息率—')+'</div>'+
           '<div class="pick-tags">'+
             '<span class="pick-tag '+tagCls+'">'+sig.icon+' '+sig.label+'</span>'+
             (sig.detail?'<div class="pick-detail '+tagCls+'-detail">'+escHtml(sig.detail)+'</div>':'')+
